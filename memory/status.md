@@ -65,8 +65,25 @@ OPENAI_API_KEY, ANTHROPIC_API_KEY, UPSTASH_REDIS_REST_URL/TOKEN,
 CREATIVEGRAPH_API_KEY, CRON_SECRET, NEO4J_URI/USER/PASSWORD, BLOB_READ_WRITE_TOKEN
 ```
 
-## Git History (10 commits)
+## Code Review (2026-03-28, commit 8326257)
+Fixed P0/P1 issues:
+- P0: `agents.ts`, `debate-tool.ts` — store interface 사용 (직접 array push 제거)
+- P1: debate tool이 마지막 라운드 아이디어 저장 (round1 고정 버그)
+- P1: API 키 없으면 early return (실패 메시지를 Idea로 저장하지 않음)
+- P2: persistSession phantom agent 제거 (theory명 → light_pipeline)
+- P2: edge ID 8자 랜덤 (충돌 방지), 2자 토큰 허용 (AI/ML)
+
+Remaining known issues:
+- workflow-engine.ts still not wired to API routes
+- roles/*.ts still dead code
+- brain-views filterByDomain is O(V*E) for large graphs
+
+## Git History (14 commits)
 ```
+8326257 fix: code review P0/P1 — store interface, last-round save, phantom agents
+fc0d91a fix: debate tool reads graph context + saves results to graph
+4544f59 fix: MCP 13/13 tools + tsconfig exclude submodules
+e101c9e docs: honest status update — dead code identified, architecture corrected
 83a9cdf feat: multi-model debate tool + brainstorm-mcp submodule
 af670c6 fix: clean stale WMCP references in memory files
 3c9151d docs: complete memory system — 25 files from WMCP migration
