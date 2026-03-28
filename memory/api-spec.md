@@ -1,5 +1,5 @@
 ---
-name: creative-api-spec
+name: cgb-spec
 description: CreativeGraph AI API 스펙 — v1 비즈니스 API (33 routes, 인증+rate limit+표준응답)
 type: project
 ---

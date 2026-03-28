@@ -1,6 +1,6 @@
 ---
-name: creative-api-mcp-server
-description: MCP Server 구현 현황 — 도구 11종 외부 노출, BizScope 패턴 재사용
+name: cgb-mcp-server
+description: MCP Server — 도구 12종 외부 노출, 티어별 접근 제한
 type: project
 ---
 
@@ -17,14 +17,14 @@ src/mcp/
 src/app/api/mcp/route.ts — GET: SSE / POST: JSON-RPC
 ```
 
-## 노출 도구 11종
+## 노출 도구 12종
 graph_search, graph_query, graph_add_node, graph_add_edge, web_search,
 brainstorm, scamper_transform, evaluate_idea, extract_keywords,
-measure_novelty, triz_principle
+measure_novelty, triz_principle, analyze_image
 
 ## 연결 방법
 ```json
-{ "mcpServers": { "creativegraph": { "url": "http://localhost:3001/api/mcp" } } }
+{ "mcpServers": { "creativegraph": { "url": "http://localhost:3000/api/mcp" } } }
 ```
 
 ## 완료 (2026-03-24)

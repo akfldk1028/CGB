@@ -1,5 +1,5 @@
 ---
-name: creative-api-visualization
+name: cgb-visualization
 description: 3D 그래프 시각화 설계 — react-force-graph-3d, 색상/효과/인터랙션
 type: project
 ---

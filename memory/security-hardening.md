@@ -1,5 +1,5 @@
 ---
-name: creative-api-security-hardening
+name: cgb-security-hardening
 description: CreativeGraph AI 보안 하드닝 내역 — 6 critical + 8 warning 수정 (2026-03-25)
 type: project
 ---

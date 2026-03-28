@@ -1,5 +1,5 @@
 ---
-name: creative-api-paper-insights
+name: cgb-paper-insights
 description: TOP 논문 전문 읽고 뽑은 핵심 인사이트 — 코드 반영 + 차별화 전략
 type: project
 ---

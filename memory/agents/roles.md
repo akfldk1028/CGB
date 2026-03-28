@@ -1,6 +1,6 @@
 ---
-name: creative-api-agent-roles
-description: 6 에이전트 역할 정의 — 이론 기반 역할 분담 + ClawTeam 템플릿
+name: cgb-agent-roles
+description: 6 에이전트 역할 정의 — 이론 기반 역할 분담 (gitagent v0.1.0)
 type: project
 ---
 
@@ -16,7 +16,8 @@ type: project
 | field-validator | Csikszentmihalyi Field | 전 단계 | 시장성/실현가능성/독창성 검증 |
 
 ## 구현 위치
-- TypeScript: `modules/agents/roles/*.ts` (각 역할별 시스템 프롬프트 + 행동)
-- TypeScript: `modules/agents/orchestrator.ts` (가벼운 세션용 조율)
-- Python: `scripts/clawteam-server/templates/creative-session.toml` (heavy 세션용)
-- Python: `modules/agents/clawteam-client.ts` (HTTP 호출)
+- gitagent YAML: `agents/{name}/agent.yaml` + `SOUL.md` (역할 정의)
+- TypeScript: `src/modules/agents/runtime/agent-runner.ts` (실행 엔진)
+- TypeScript: `src/modules/agents/runtime/loader.ts` (YAML 로더, fallback: definitions.ts)
+- TypeScript: `src/modules/agents/runtime/workflow-engine.ts` (DAG 실행)
+- 도구: `src/modules/agents/tools/registry.ts` (12종 MCP 호환 도구)

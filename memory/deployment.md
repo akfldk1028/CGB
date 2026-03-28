@@ -1,14 +1,14 @@
 ---
-name: creative-api-deployment
-description: CreativeGraph AI 배포 정보 — 33 routes, Upstash Redis 연결 완료, 환경변수 전체
+name: cgb-deployment
+description: CGB 배포 정보 — 33 routes, Upstash Redis, 환경변수 전체
 type: project
 ---
 
-# 배포 정보 (2026-03-24)
+# 배포 정보 (2026-03-28)
 
 ## 웹앱 (Vercel)
-- 프로젝트: `projects/creative-api/`
-- dev: `pnpm --filter @wmcp/creative-api dev` → localhost:3001
+- 레포: `D:\Data\CGB` (독립 레포, GitHub: akfldk1028/CGB)
+- dev: `pnpm dev` → localhost:3000
 - Vercel URL: (아직 미배포)
 - **33 routes** (v1 13개 + legacy 10개 + system 5개 + pages 5개)
 - **테스트 완료**: 키 생성 → Redis 저장 → 키로 API 호출 → 키 정보 조회 → 사용량 조회 전부 통과
@@ -20,9 +20,9 @@ type: project
 - 플랜: Free (256MB, 500k commands/month)
 - Endpoint: `modest-worm-38961.upstash.io`
 
-## Google Cloud VM
+## Google Cloud VM (optional, for Memgraph)
 - VM: creative-graph, asia-northeast3-a, e2-medium
-- Memgraph: 7687 (Bolt), ClawTeam: 8000 (HTTP)
+- Memgraph: 7687 (Bolt)
 
 ## 환경변수 (.env.local 설정 완료)
 

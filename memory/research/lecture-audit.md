@@ -1,5 +1,5 @@
 ---
-name: creative-api-lecture-audit
+name: cgb-lecture-audit
 description: Digital Creativity 수업자료 29슬라이드 vs 구현 대조 감사 결과 (2026-03-24 업데이트)
 type: project
 ---

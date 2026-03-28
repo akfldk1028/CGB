@@ -1,5 +1,5 @@
 ---
-name: creative-api-pipeline-status
+name: cgb-pipeline-status
 description: CreativeGraph AI 파이프라인 — light + heavy 둘 다 검증 완료 (2026-03-25)
 type: project
 ---

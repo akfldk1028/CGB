@@ -1,6 +1,6 @@
 ---
-name: creative-api-agent-architecture
-description: 자율 에이전트 아키텍처 — 도구 시스템, 런타임 루프, 멀티에이전트 오케스트레이션
+name: cgb-agent-architecture
+description: 자율 에이전트 아키텍처 — 도구 12종, 런타임 루프, DAG 워크플로우, Agent 노드 등록
 type: project
 ---
 
@@ -20,8 +20,8 @@ Agent Runner (자율 루프)
 
 ## 파일 구조
 ```
-modules/agents/
-├── tools/                    — 에이전트 도구 (11종)
+src/modules/agents/
+├── tools/                    — 에이전트 도구 (12종)
 │   ├── registry.ts           — 전체 도구 레지스트리 + 역할별 필터링
 │   ├── web-search.ts         — Google 웹 검색
 │   ├── graph-tools.ts        — Graph DB CRUD (4도구) + 이벤트 emit
@@ -30,14 +30,20 @@ modules/agents/
 │   ├── brainstorm-tool.ts    — 발산적 아이디어 생성
 │   ├── keyword-extractor.ts  — 키워드 추출
 │   ├── novelty-tool.ts       — Graph 거리 = 창의성 측정
-│   └── triz-tool.ts          — TRIZ 40 발명 원리
+│   ├── triz-tool.ts          — TRIZ 40 발명 원리
+│   └── image-tool.ts         — VLM 이미지 분석
 ├── runtime/
-│   ├── agent-runner.ts       — 단일 에이전트 자율 루프 (AI SDK tool calling)
-│   ├── definitions.ts        — 6 에이전트 선언적 정의
-│   └── multi-agent.ts        — 4I's 멀티에이전트 파이프라인
-├── roles/                    — 역할별 프롬프트
-├── orchestrator.ts           — (legacy) 단순 파이프라인
-└── clawteam-client.ts        — Python 서버 호출 (heavy)
+│   ├── agent-runner.ts       — 자율 루프 + Agent 노드 자동 등록 + GENERATED_BY 엣지
+│   ├── workflow-engine.ts    — DAG 워크플로우 실행 (YAML 기반, 병렬 지원)
+│   ├── loader.ts             — gitagent YAML→AgentDefinition, fallback definitions.ts
+│   └── definitions.ts        — 6 에이전트 선언적 정의 (fallback)
+```
+
+gitagent 표준 (레포 루트):
+```
+agents/{name}/agent.yaml + SOUL.md  — 에이전트 정의
+workflows/*.yaml                     — DAG 워크플로우
+tools/*.yaml                         — MCP 호환 도구 스키마
 ```
 
 ## LLM: AI SDK 멀티프로바이더 (3종)

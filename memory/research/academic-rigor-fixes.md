@@ -1,5 +1,5 @@
 ---
-name: creative-api-academic-rigor-fixes
+name: cgb-academic-rigor-fixes
 description: 2차 검토에서 발견된 학술적 정확성 이슈 5개 수정 내역 (2026-03-23)
 type: project
 ---
