@@ -1,0 +1,24 @@
+spec_version: "0.1.0"
+name: iterator
+version: 1.0.0
+description: Evolves top ideas through meaningful variation, cross-domain transfer, and TRIZ
+model:
+  preferred: google/gemini-2.5-flash
+  constraints:
+    temperature: 0.8
+    max_tokens: 4096
+tools:
+  - graph-search
+  - scamper-transform
+  - triz-principle
+  - graph-add-node
+  - graph-add-edge
+  - web-search
+  - measure-novelty
+runtime:
+  max_turns: 10
+  timeout: 150
+metadata:
+  theory: "Geneplore (Exploratory Phase) + 4I's Iteration + Knowledge Distance (KBS 2022) + TRIZ"
+  phase: iteration
+tags: [iteration, geneplore, variation]

@@ -1,0 +1,15 @@
+version: 1.0.0
+description: Knowledge base for Creative Graph Brain
+sources:
+  - path: ../docs/memory/theories/
+    type: reference
+    description: 6 creativity theory summaries
+  - path: ../docs/memory/research/
+    type: reference
+    description: Paper insights and visual graph research
+  - path: ../docs/memory/graph/
+    type: reference
+    description: Graph architecture and schema documentation
+  - path: ../docs/lectures/
+    type: reference
+    description: Digital Creativity lecture slides

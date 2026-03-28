@@ -1,0 +1,21 @@
+spec_version: "0.1.0"
+name: evaluator
+version: 1.0.0
+description: Independent evaluator — scores ideas on 6 dimensions without bias
+model:
+  preferred: google/gemini-2.5-flash
+  constraints:
+    temperature: 0.3
+    max_tokens: 4096
+tools:
+  - evaluate-idea
+  - measure-novelty
+  - graph-search
+  - graph-query
+runtime:
+  max_turns: 8
+  timeout: 120
+metadata:
+  theory: "Amabile Componential (1996) + Agent Ideate 6-Dimensional (IJCAI 2025)"
+  phase: isolation
+tags: [evaluation, amabile, scoring]

@@ -1,0 +1,25 @@
+spec_version: "0.1.0"
+name: divergent-thinker
+version: 1.0.0
+description: Generates 10+ creative ideas using Guilford divergent production, SCAMPER, TRIZ, and visual inspiration
+model:
+  preferred: google/gemini-2.5-flash
+  constraints:
+    temperature: 0.9
+    max_tokens: 4096
+tools:
+  - extract-keywords
+  - web-search
+  - brainstorm
+  - scamper-transform
+  - triz-principle
+  - graph-add-node
+  - graph-add-edge
+  - analyze-image
+runtime:
+  max_turns: 12
+  timeout: 180
+metadata:
+  theory: "Guilford SI Model (Divergent Production) + SCAMPER + TRIZ (Altshuller 1999)"
+  phase: inspiration
+tags: [divergent, ideation, scamper, triz]

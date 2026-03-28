@@ -16,6 +16,7 @@ import { z } from 'zod';
 import type { AgentRole } from '@/types/agent';
 import { getToolsForRole, type AgentTool } from '../tools/registry';
 import { AGENT_DEFINITIONS } from './definitions';
+import { loadAgent } from './loader';
 import { getModel } from '@/modules/llm/client';
 
 export interface AgentStep {
@@ -73,7 +74,8 @@ export async function runAgent(
   domain?: string
 ): Promise<AgentRunResult> {
   const startTime = Date.now();
-  const definition = AGENT_DEFINITIONS[role];
+  // YAML 우선, fallback to hardcoded definitions
+  const definition = await loadAgent(role);
   if (!definition) throw new Error(`Unknown agent role: ${role}`);
 
   const agentTools = getToolsForRole(role, domain);

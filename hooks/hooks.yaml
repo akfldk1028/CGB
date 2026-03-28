@@ -1,0 +1,15 @@
+version: 1.0.0
+hooks:
+  on_session_start:
+    - action: Load persisted graph from file
+      script: loadFromFile
+  on_node_created:
+    - action: Calculate novelty score
+      script: calculateNovelty
+    - action: Auto-suggest SIMILAR_TO edges
+      script: suggestRelated
+  on_session_complete:
+    - action: Persist graph to file
+      script: saveToFile
+    - action: Emit session:completed event
+      script: emitSessionCompleted

@@ -1,0 +1,22 @@
+spec_version: "0.1.0"
+name: creative-director
+version: 1.0.0
+description: Orchestrator of the 4I's creative pipeline — coordinates agents and curates final output
+model:
+  preferred: google/gemini-2.5-flash
+  constraints:
+    temperature: 0.5
+    max_tokens: 4096
+tools:
+  - web-search
+  - graph-search
+  - graph-query
+  - evaluate-idea
+  - measure-novelty
+runtime:
+  max_turns: 15
+  timeout: 180
+metadata:
+  theory: "4I's Pipeline Orchestration"
+  phase: all
+tags: [orchestrator, director, curation]

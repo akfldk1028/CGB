@@ -1,0 +1,33 @@
+name: four-is-light
+version: 1.0.0
+description: "4I's pipeline — Light mode. Single-threaded, ~100 seconds."
+inputs:
+  - name: topic
+    type: string
+    required: true
+  - name: domain
+    type: string
+    required: true
+outputs:
+  - name: session
+    type: object
+steps:
+  - id: immersion
+    action: Search graph for existing knowledge and gather web context
+    skill: graph-search
+    outputs: [graph_context, web_context]
+  - id: inspiration
+    action: Generate 10 ideas via divergent thinking
+    depends_on: [immersion]
+    skill: brainstorm
+    outputs: [ideas]
+  - id: isolation
+    action: Evaluate and rank ideas using 6-dimensional scoring
+    depends_on: [inspiration]
+    skill: evaluate
+    outputs: [ranked_ideas]
+  - id: iteration
+    action: Create SCAMPER variations of top ideas
+    depends_on: [isolation]
+    skill: scamper
+    outputs: [iterated_ideas]

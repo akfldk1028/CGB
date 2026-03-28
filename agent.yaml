@@ -1,0 +1,104 @@
+spec_version: "0.1.0"
+name: creative-graph-brain
+version: 0.1.0
+description: >
+  AI creativity engine that codes 5 academic creativity theories into autonomous agents.
+  Ideas accumulate forever in a knowledge graph. Images and text feed the brain.
+
+model:
+  preferred: google/gemini-2.5-flash
+  fallback:
+    - anthropic/claude-sonnet-4.6
+    - openai/gpt-4o
+  constraints:
+    temperature: 0.7
+    max_tokens: 4096
+
+skills:
+  - brainstorm
+  - evaluate
+  - scamper
+  - triz
+  - image-analysis
+  - graph-search
+
+tools:
+  - graph-add-node
+  - graph-add-edge
+  - graph-search
+  - graph-query
+  - brainstorm
+  - evaluate-idea
+  - scamper-transform
+  - triz-principle
+  - analyze-image
+  - measure-novelty
+  - extract-keywords
+  - web-search
+
+agents:
+  researcher:
+    description: Gathers domain context via web search, graph exploration, and image analysis
+    delegation:
+      mode: explicit
+      triggers:
+        - session_started
+  divergent-thinker:
+    description: Generates 10+ creative ideas using SCAMPER, TRIZ, brainstorming
+    delegation:
+      mode: explicit
+      triggers:
+        - immersion_complete
+  evaluator:
+    description: Scores ideas on 6 dimensions (Amabile + Agent Ideate)
+    delegation:
+      mode: explicit
+      triggers:
+        - ideas_generated
+  field-validator:
+    description: Validates ideas against market reality and knowledge distance
+    delegation:
+      mode: explicit
+      triggers:
+        - ideas_generated
+  iterator:
+    description: Evolves top ideas through meaningful variation and cross-domain transfer
+    delegation:
+      mode: explicit
+      triggers:
+        - evaluation_complete
+  creative-director:
+    description: Orchestrates the 4I's pipeline and makes final curation decisions
+    delegation:
+      mode: router
+
+delegation:
+  mode: router
+  router: creative-director
+
+runtime:
+  max_turns: 50
+  temperature: 0.7
+  timeout: 300
+
+tags:
+  - creativity
+  - knowledge-graph
+  - multi-agent
+  - visual-inspiration
+  - academic-theory
+
+metadata:
+  theories:
+    - "Guilford Structure of Intellect (1967)"
+    - "Amabile Componential (1996)"
+    - "Csikszentmihalyi Systems Model (1996)"
+    - "Geneplore (Finke 1992)"
+    - "SCAMPER (Eberle 1971)"
+  pipeline: "4I's — Immersion, Inspiration, Isolation, Iteration"
+  graph_ontology: "4-level — Domain > Topic > Idea > Artifact"
+  papers:
+    - "Agent Ideate (IJCAI 2025)"
+    - "Knowledge Distance (KBS 2022)"
+    - "Visual World Models (Wu 2026)"
+    - "VLM + Scene Graph (Lohner 2024)"

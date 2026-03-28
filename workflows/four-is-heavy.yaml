@@ -1,0 +1,47 @@
+name: four-is-heavy
+version: 1.0.0
+description: "4I's pipeline — Heavy mode. Multi-agent autonomous, ~191 seconds."
+inputs:
+  - name: topic
+    type: string
+    required: true
+  - name: domain
+    type: string
+    required: true
+outputs:
+  - name: session
+    type: object
+steps:
+  - id: immersion
+    agent: researcher
+    action: Research domain context, save Concept nodes to graph
+    outputs: [research_context]
+  - id: inspiration
+    agent: divergent-thinker
+    depends_on: [immersion]
+    action: Generate 10+ ideas using brainstorm, SCAMPER, TRIZ
+    outputs: [ideas]
+  - id: evaluation
+    parallel: true
+    depends_on: [inspiration]
+    steps:
+      - id: evaluate
+        agent: evaluator
+        action: Score ideas on 6 dimensions independently
+        outputs: [scores]
+      - id: validate
+        agent: field-validator
+        action: Validate ideas against market reality
+        outputs: [validation]
+  - id: tournament
+    action: LLM-as-Judge tournament — select top ideas
+    depends_on: [evaluation]
+    outputs: [top_ideas]
+  - id: iteration
+    agent: iterator
+    depends_on: [tournament]
+    action: Evolve top ideas through meaningful variation
+    outputs: [iterated_ideas]
+error_handling:
+  on_step_failure: continue
+  max_retries: 1

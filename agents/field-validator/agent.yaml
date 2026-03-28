@@ -1,0 +1,22 @@
+spec_version: "0.1.0"
+name: field-validator
+version: 1.0.0
+description: Csikszentmihalyi's Field gatekeeper — validates ideas against market reality
+model:
+  preferred: google/gemini-2.5-flash
+  constraints:
+    temperature: 0.4
+    max_tokens: 4096
+tools:
+  - web-search
+  - extract-keywords
+  - graph-search
+  - evaluate-idea
+  - measure-novelty
+runtime:
+  max_turns: 8
+  timeout: 120
+metadata:
+  theory: "Csikszentmihalyi Systems Model (Field) + Knowledge Distance (KBS 2022)"
+  phase: isolation
+tags: [validation, field, market-check]

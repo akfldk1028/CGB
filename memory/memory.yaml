@@ -1,0 +1,6 @@
+version: 1.0.0
+max_entries: 200
+archive_strategy: monthly
+runtime:
+  daily_log: true
+  context_tracking: true
