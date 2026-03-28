@@ -15,7 +15,6 @@ import { generateText, tool, stepCountIs } from 'ai';
 import { z } from 'zod';
 import type { AgentRole } from '@/types/agent';
 import { getToolsForRole, type AgentTool } from '../tools/registry';
-import { AGENT_DEFINITIONS } from './definitions';
 import { loadAgent } from './loader';
 import { getModel } from '@/modules/llm/client';
 

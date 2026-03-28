@@ -4,78 +4,44 @@
  * - agents/{name}/agent.yaml → AgentDefinition
  * - agents/{name}/SOUL.md → systemPrompt
  * - workflows/{name}.yaml → WorkflowDefinition
- * - tools/{name}.yaml → ToolSchema
  *
  * Fallback: YAML 없으면 기존 definitions.ts 사용
  */
 
 import { readFile } from 'fs/promises';
 import path from 'path';
+import yaml from 'js-yaml';
 import type { AgentRole } from '@/types/agent';
 import { AGENT_DEFINITIONS, type AgentDefinition } from './definitions';
 
 // gitagent 루트 = 프로젝트 루트 (CGB/)
+// Vercel: process.cwd() = /var/task, 파일은 빌드에 포함되어야 함
 const GITAGENT_ROOT = path.resolve(process.cwd());
 
-// ── YAML 파서 (경량 — js-yaml 없이 기본 파싱) ──
+// ── Role ↔ Name 매핑 (한 곳에서만 정의) ──
 
-function parseSimpleYaml(text: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const lines = text.split('\n');
-  let currentKey = '';
-  let currentList: string[] | null = null;
+const ROLE_TO_NAME: Record<AgentRole, string> = {
+  researcher: 'researcher',
+  divergent_thinker: 'divergent-thinker',
+  evaluator: 'evaluator',
+  iterator: 'iterator',
+  field_validator: 'field-validator',
+  creative_director: 'creative-director',
+};
 
-  for (const line of lines) {
-    // 주석, 빈 줄 스킵
-    if (line.trim().startsWith('#') || line.trim() === '' || line.trim() === '---') continue;
+const NAME_TO_ROLE: Record<string, AgentRole> = Object.fromEntries(
+  Object.entries(ROLE_TO_NAME).map(([role, name]) => [name, role as AgentRole])
+);
 
-    // 리스트 항목
-    if (line.match(/^\s+-\s+/)) {
-      const val = line.replace(/^\s+-\s+/, '').trim();
-      if (currentList && currentKey) {
-        currentList.push(val);
-        result[currentKey] = currentList;
-      }
-      continue;
-    }
+// ── 캐시 (동일 파일 반복 로드 방지) ──
 
-    // key: value
-    const match = line.match(/^(\w[\w.-]*)\s*:\s*(.*)$/);
-    if (match) {
-      currentKey = match[1];
-      const val = match[2].trim();
-
-      if (val === '' || val === '>') {
-        // 다음 줄에 리스트가 올 수 있음
-        currentList = [];
-        result[currentKey] = currentList;
-      } else if (val.startsWith('[') && val.endsWith(']')) {
-        // 인라인 배열
-        result[currentKey] = val.slice(1, -1).split(',').map((s) => s.trim().replace(/^["']|["']$/g, ''));
-        currentList = null;
-      } else if (val === 'true') {
-        result[currentKey] = true;
-        currentList = null;
-      } else if (val === 'false') {
-        result[currentKey] = false;
-        currentList = null;
-      } else if (!isNaN(Number(val)) && val !== '') {
-        result[currentKey] = Number(val);
-        currentList = null;
-      } else {
-        result[currentKey] = val.replace(/^["']|["']$/g, '');
-        currentList = null;
-      }
-    }
-  }
-
-  return result;
-}
+const agentCache = new Map<AgentRole, AgentDefinition>();
+const workflowCache = new Map<string, WorkflowDefinition>();
 
 // ── Agent Loader ──
 
 /** agent.yaml + SOUL.md 에서 에이전트 정의 로드 */
-export async function loadAgentFromYaml(agentName: string): Promise<AgentDefinition | null> {
+async function loadAgentFromYaml(agentName: string): Promise<AgentDefinition | null> {
   const agentDir = path.join(GITAGENT_ROOT, 'agents', agentName);
 
   try {
@@ -84,30 +50,21 @@ export async function loadAgentFromYaml(agentName: string): Promise<AgentDefinit
       readFile(path.join(agentDir, 'SOUL.md'), 'utf-8'),
     ]);
 
-    const yaml = parseSimpleYaml(yamlText);
+    const parsed = yaml.load(yamlText) as Record<string, unknown>;
 
     // SOUL.md → systemPrompt (frontmatter 제거)
     const soulContent = soulText.replace(/^---[\s\S]*?---\s*/m, '').trim();
 
-    // kebab-case → snake_case 매핑
-    const roleMap: Record<string, AgentRole> = {
-      'researcher': 'researcher',
-      'divergent-thinker': 'divergent_thinker',
-      'evaluator': 'evaluator',
-      'iterator': 'iterator',
-      'field-validator': 'field_validator',
-      'creative-director': 'creative_director',
-    };
-
-    const role = roleMap[agentName] ?? agentName as AgentRole;
-    const metadata = yaml.metadata as Record<string, unknown> | undefined;
+    const role = NAME_TO_ROLE[agentName] ?? agentName as AgentRole;
+    const metadata = parsed.metadata as Record<string, unknown> | undefined;
+    const runtime = parsed.runtime as Record<string, unknown> | undefined;
 
     return {
       role,
-      name: (yaml.name as string) ?? agentName,
+      name: (parsed.name as string) ?? agentName,
       theory: (metadata?.theory as string) ?? '',
       phases: metadata?.phase ? [metadata.phase as string] : ['all'],
-      maxSteps: ((yaml.runtime as Record<string, unknown>)?.max_turns as number) ?? 10,
+      maxSteps: (runtime?.max_turns as number) ?? 10,
       systemPrompt: soulContent,
     };
   } catch {
@@ -115,26 +72,25 @@ export async function loadAgentFromYaml(agentName: string): Promise<AgentDefinit
   }
 }
 
-/** 에이전트 정의 로드 — YAML 우선, 없으면 definitions.ts fallback */
+/** 에이전트 정의 로드 — YAML 우선, 캐시, fallback definitions.ts */
 export async function loadAgent(role: AgentRole): Promise<AgentDefinition> {
-  // role → kebab-case
-  const nameMap: Record<AgentRole, string> = {
-    researcher: 'researcher',
-    divergent_thinker: 'divergent-thinker',
-    evaluator: 'evaluator',
-    iterator: 'iterator',
-    field_validator: 'field-validator',
-    creative_director: 'creative-director',
-  };
+  // 캐시 확인
+  const cached = agentCache.get(role);
+  if (cached) return cached;
 
-  const agentName = nameMap[role];
+  const agentName = ROLE_TO_NAME[role];
   if (agentName) {
     const fromYaml = await loadAgentFromYaml(agentName);
-    if (fromYaml) return fromYaml;
+    if (fromYaml) {
+      agentCache.set(role, fromYaml);
+      return fromYaml;
+    }
   }
 
-  // Fallback to hardcoded definitions
-  return AGENT_DEFINITIONS[role];
+  // Fallback
+  const def = AGENT_DEFINITIONS[role];
+  agentCache.set(role, def);
+  return def;
 }
 
 // ── Workflow Loader ──
@@ -149,6 +105,7 @@ export interface WorkflowStep {
   outputs?: string[];
   parallel?: boolean;
   steps?: WorkflowStep[];
+  inputs?: Record<string, string>;
 }
 
 export interface WorkflowDefinition {
@@ -156,26 +113,63 @@ export interface WorkflowDefinition {
   version: string;
   description: string;
   steps: WorkflowStep[];
+  error_handling?: { on_step_failure?: string; max_retries?: number };
 }
 
-/** workflows/{name}.yaml 로드 */
+/** workflows/{name}.yaml 로드 + 파싱 */
 export async function loadWorkflow(name: string): Promise<WorkflowDefinition | null> {
+  const cached = workflowCache.get(name);
+  if (cached) return cached;
+
   try {
     const filePath = path.join(GITAGENT_ROOT, 'workflows', `${name}.yaml`);
     const text = await readFile(filePath, 'utf-8');
+    const parsed = yaml.load(text) as Record<string, unknown>;
 
-    // 워크플로우 YAML은 구조가 복잡하므로 기본 정보만 추출
-    const yaml = parseSimpleYaml(text);
+    const rawSteps = parsed.steps as unknown[];
+    const steps = rawSteps ? parseSteps(rawSteps) : [];
 
-    return {
-      name: (yaml.name as string) ?? name,
-      version: (yaml.version as string) ?? '1.0.0',
-      description: (yaml.description as string) ?? '',
-      steps: [], // workflow-engine에서 직접 파싱
+    const def: WorkflowDefinition = {
+      name: (parsed.name as string) ?? name,
+      version: (parsed.version as string) ?? '1.0.0',
+      description: (parsed.description as string) ?? '',
+      steps,
+      error_handling: parsed.error_handling as WorkflowDefinition['error_handling'],
     };
+
+    workflowCache.set(name, def);
+    return def;
   } catch {
     return null;
   }
+}
+
+/** YAML steps 배열 → WorkflowStep[] 재귀 파싱 */
+function parseSteps(rawSteps: unknown[]): WorkflowStep[] {
+  return rawSteps.map((raw) => {
+    const s = raw as Record<string, unknown>;
+    const step: WorkflowStep = {
+      id: (s.id as string) ?? '',
+      action: (s.action as string) ?? '',
+      agent: s.agent as string | undefined,
+      skill: s.skill as string | undefined,
+      tool: s.tool as string | undefined,
+      depends_on: s.depends_on as string[] | undefined,
+      outputs: s.outputs as string[] | undefined,
+      parallel: s.parallel as boolean | undefined,
+    };
+
+    if (s.inputs) {
+      step.inputs = s.inputs as Record<string, string>;
+    }
+
+    // 병렬 서브스텝 재귀 파싱
+    if (s.steps && Array.isArray(s.steps)) {
+      step.steps = parseSteps(s.steps);
+    }
+
+    return step;
+  });
 }
 
 // ── SOUL Loader (단독) ──
@@ -191,18 +185,21 @@ export async function loadSoul(agentName: string): Promise<string | null> {
   }
 }
 
-// ── All Agents Loader ──
+// ── All Agents ──
 
-const ALL_AGENT_NAMES: AgentRole[] = [
-  'researcher', 'divergent_thinker', 'evaluator',
-  'iterator', 'field_validator', 'creative_director',
-];
+const ALL_ROLES: AgentRole[] = Object.keys(ROLE_TO_NAME) as AgentRole[];
 
-/** 모든 에이전트 정의 로드 (YAML 우선) */
+/** 모든 에이전트 정의 로드 (YAML 우선, 캐시) */
 export async function loadAllAgents(): Promise<Record<AgentRole, AgentDefinition>> {
   const result = {} as Record<AgentRole, AgentDefinition>;
-  for (const role of ALL_AGENT_NAMES) {
+  await Promise.all(ALL_ROLES.map(async (role) => {
     result[role] = await loadAgent(role);
-  }
+  }));
   return result;
+}
+
+/** 캐시 클리어 (테스트/핫리로드용) */
+export function clearLoaderCache(): void {
+  agentCache.clear();
+  workflowCache.clear();
 }

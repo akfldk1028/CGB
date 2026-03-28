@@ -2,6 +2,10 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['neo4j-driver'],
+  // gitagent YAML/MD 파일을 Vercel 빌드에 포함 (fs.readFile로 접근)
+  outputFileTracingIncludes: {
+    '/api/**': ['./agents/**/*', './workflows/**/*', './tools/**/*'],
+  },
   async headers() {
     return [
       {
