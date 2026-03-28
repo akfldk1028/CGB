@@ -31,3 +31,16 @@
 ## Tournament bracket with 10 matches (not 20)
 **Decision**: Random-pairing LLM-as-Judge, capped at 10 comparisons.
 **Why**: 20 matches = 20 LLM calls = too slow. 10 gives good enough ranking with half the cost. Winner determined by win count.
+
+## multi-agent.ts is the real heavy mode (not workflow-engine.ts)
+**Decision**: API routes call `runMultiAgentPipeline()` from `multi-agent.ts`, not `runWorkflow()` from `workflow-engine.ts`.
+**Why**: `workflow-engine.ts` was built to parse YAML DAG workflows, but the API routes were wired to `multi-agent.ts` (hardcoded agent sequence) first and that's what was tested/verified. The YAML engine exists but is unused. Future: wire `workflow-engine.ts` into routes to replace `multi-agent.ts`.
+
+## Known dead code (intentionally kept, not deleted)
+**Decision**: Several files exist but aren't called from any live path.
+**Files**: `clawteam-client.ts`, `roles/*.ts` (6 files), `theories/csikszentmihalyi.ts`, `theories/geneplore.ts`, `techniques/story-structure.ts`, `techniques/role-storming.ts`
+**Why**: These are either legacy (clawteam was a Python server, replaced by agent-runner), theoretical reference (csikszentmihalyi/geneplore are cited but the pipeline IS those theories), or future expansion (story-structure, role-storming may be added as tools later). Keep as reference, don't wire in unless needed.
+
+## Multi-model debate as native tool (not subprocess MCP)
+**Decision**: `debate-tool.ts` uses CGB's own `getModel()` to call Gemini/Claude/GPT in parallel, rather than running brainstorm-mcp as a subprocess.
+**Why**: CGB already has AI SDK multi-provider support. Running a separate MCP process adds complexity. The brainstorm-mcp submodule is kept as reference at `submodules/brainstorm-mcp/`.

@@ -20,7 +20,8 @@ Sequential function calls. No agents. Guilford divergent→convergent.
 ```
 researcher (10s) → divergent_thinker (23s) → [evaluator (41s) + field_validator (5s)] parallel → iterator (19s)
 ```
-DAG workflow engine reads `workflows/four-is-heavy.yaml`.
+Runs via `multi-agent.ts` (hardcoded agent sequence).
+NOTE: `workflow-engine.ts` (YAML DAG parser) exists but is NOT wired into any API route yet. The actual heavy mode uses `multi-agent.ts`.
 
 ## 6 Agents (gitagent v0.1.0 standard)
 Each has `agents/{name}/agent.yaml` + `SOUL.md`.
@@ -73,7 +74,7 @@ src/modules/
 │   ├── agent-runner.ts    — Autonomous agent loop + agent node registration
 │   ├── workflow-engine.ts — DAG execution from YAML
 │   └── loader.ts          — YAML→AgentDefinition + SOUL.md→systemPrompt
-├── agents/tools/          — 12 MCP-compatible tools (registry.ts)
+├── agents/tools/          — 13 MCP-compatible tools (registry.ts)
 ├── creativity/
 │   ├── theories/          — guilford.ts, amabile.ts (code that runs)
 │   └── techniques/        — scamper.ts, brainstorming.ts, mind-mapping.ts
