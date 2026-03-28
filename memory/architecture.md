@@ -58,6 +58,16 @@ Why single graph: Knowledge Distance requires all nodes connected. Separate stor
 - External agents register the same way (via MCP tools)
 - `getAgentStats()` tracks contributions per agent
 
+## Git Clone (submodule 포함)
+```bash
+git clone --recurse-submodules https://github.com/akfldk1028/CGB.git
+# 이미 clone 했으면:
+git submodule update --init --recursive
+```
+`submodules/brainstorm-mcp/` — 멀티모델 디베이트 참조 구현 (v1.5.4). CGB는 이걸 직접 import하지 않고, 같은 패턴을 AI SDK 기반으로 `debate-tool.ts`에 네이티브 구현. submodule은 참조용.
+
+**주의**: `tsconfig.json`에서 `"exclude": ["submodules"]` 설정됨. submodule 소스가 빌드에 잡히지 않음.
+
 ## Tech Stack
 - Next.js 15, TypeScript strict
 - AI SDK (`generateText` + `stopWhen: stepCountIs(N)`)

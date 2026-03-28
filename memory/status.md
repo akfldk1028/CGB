@@ -21,7 +21,7 @@
 - [x] Multi-model debate tool — debate-tool.ts (13th tool)
 - [x] Security hardening — safe-cypher.ts, middleware header strip, param clamp
 - [x] API routes — 33 v1 + legacy + system
-- [x] MCP server — mcp/server.ts + transport-sse.ts (11 tools exposed)
+- [x] MCP server — mcp/server.ts + transport-sse.ts (13 tools exposed)
 - [x] Build passing (Next.js 15)
 
 ## Dead Code (exists but not called from live paths)
@@ -48,7 +48,7 @@
 - [ ] LemonSqueezy payment integration
 - [ ] Dashboard page data (static placeholder)
 - [ ] Real-time graph polling during sessions
-- [ ] MCP tools.ts sync (11 of 13 tools exposed)
+- [x] MCP tools.ts sync (13/13 tools exposed)
 - [ ] workflow-engine.ts integration into API routes
 
 ## Build & Run

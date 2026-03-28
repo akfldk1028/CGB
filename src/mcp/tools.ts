@@ -1,7 +1,7 @@
 /**
  * MCP Tool definitions for CreativeGraph AI.
  *
- * Wraps the 11 internal agent tools as MCP-compatible tool schemas
+ * Wraps the 13 internal agent tools as MCP-compatible tool schemas
  * with JSON Schema inputSchema and execute functions.
  */
 
@@ -13,6 +13,8 @@ import { brainstormTool } from '../modules/agents/tools/brainstorm-tool';
 import { keywordExtractorTool } from '../modules/agents/tools/keyword-extractor';
 import { noveltyTool } from '../modules/agents/tools/novelty-tool';
 import { trizTool } from '../modules/agents/tools/triz-tool';
+import { imageAnalysisTool } from '../modules/agents/tools/image-tool';
+import { debateTool } from '../modules/agents/tools/debate-tool';
 import type { AgentTool } from '../modules/agents/tools/registry';
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ function fromAgentTool(tool: AgentTool): MCPToolDef {
 }
 
 // ---------------------------------------------------------------------------
-// All 11 tools
+// All 13 tools
 // ---------------------------------------------------------------------------
 
 export const MCP_TOOLS: MCPToolDef[] = [
@@ -69,10 +71,12 @@ export const MCP_TOOLS: MCPToolDef[] = [
   // Search (1)
   fromAgentTool(webSearchTool),
 
-  // Creativity tools (3)
+  // Creativity tools (5)
   fromAgentTool(brainstormTool),
   fromAgentTool(scamperTool),
   fromAgentTool(trizTool),
+  fromAgentTool(imageAnalysisTool),
+  fromAgentTool(debateTool),
 
   // Evaluation tools (3)
   fromAgentTool(evaluateTool),
