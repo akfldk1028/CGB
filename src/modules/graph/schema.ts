@@ -187,7 +187,8 @@ export type GenerationMethod =
   | 'human_input'              // 사용자 직접 입력
   | 'agent_autonomous'         // 에이전트 자율 생성
   | 'visual_inspiration'       // 이미지에서 영감 (VLM 분석)
-  | 'scene_graph_extract';     // 이미지 Scene Graph 추출
+  | 'scene_graph_extract'      // 이미지 Scene Graph 추출
+  | 'multi_model_debate';      // 멀티모델 토론 (brainstorm-mcp 패턴)
 
 // ═══════════════════════════════════════════
 // EDGE TYPES — 3계층 관계

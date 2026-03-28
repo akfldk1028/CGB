@@ -1,10 +1,11 @@
-/** Agent Tool Registry — 논문 기반 도구 11종
+/** Agent Tool Registry — 논문 기반 도구 13종
  *
  * 근거:
  * - Agent Ideate (IJCAI 2025): keyword extraction + 6-dim evaluation
  * - KG-Agent (2024): autonomous tool use over knowledge graphs
  * - TRIZ Agents (ICAART 2025): TRIZ principles as tools
  * - Knowledge Distance (KBS 2022): novelty measurement via graph distance
+ * - brainstorm-mcp: multi-model debate for diverse perspectives
  */
 
 import type { AgentRole } from '@/types/agent';
@@ -17,6 +18,7 @@ import { keywordExtractorTool } from './keyword-extractor';
 import { noveltyTool } from './novelty-tool';
 import { trizTool } from './triz-tool';
 import { imageAnalysisTool } from './image-tool';
+import { debateTool } from './debate-tool';
 
 export interface AgentTool {
   name: string;
@@ -25,7 +27,7 @@ export interface AgentTool {
   execute: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
-/** 전체 도구 레지스트리 — 12종 */
+/** 전체 도구 레지스트리 — 13종 */
 export const ALL_TOOLS: AgentTool[] = [
   webSearchTool,
   graphQueryTool,
@@ -39,13 +41,14 @@ export const ALL_TOOLS: AgentTool[] = [
   noveltyTool,
   trizTool,
   imageAnalysisTool,
+  debateTool,
 ];
 
 /** 역할별 기본 도구 매핑 */
 const ROLE_TOOLS: Record<AgentRole, string[]> = {
   creative_director: ['web_search', 'graph_search', 'graph_query', 'evaluate_idea', 'measure_novelty'],
   researcher:        ['extract_keywords', 'web_search', 'graph_search', 'graph_query', 'graph_add_node', 'analyze_image'],
-  divergent_thinker: ['extract_keywords', 'web_search', 'brainstorm', 'scamper_transform', 'triz_principle', 'graph_add_node', 'graph_add_edge', 'analyze_image'],
+  divergent_thinker: ['extract_keywords', 'web_search', 'brainstorm', 'multi_model_debate', 'scamper_transform', 'triz_principle', 'graph_add_node', 'graph_add_edge', 'analyze_image'],
   evaluator:         ['evaluate_idea', 'measure_novelty', 'graph_search', 'graph_query'],
   iterator:          ['graph_search', 'scamper_transform', 'triz_principle', 'graph_add_node', 'graph_add_edge', 'web_search', 'measure_novelty'],
   field_validator:   ['web_search', 'extract_keywords', 'graph_search', 'evaluate_idea', 'measure_novelty'],

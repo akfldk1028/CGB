@@ -1,0 +1,50 @@
+name: multi_model_debate
+version: 1.0.0
+description: >
+  Run a multi-model creative debate. Multiple LLMs independently brainstorm,
+  then debate across rounds, then synthesize. Produces more diverse ideas
+  than single-model generation. Inspired by brainstorm-mcp.
+inputSchema:
+  type: object
+  required: [topic, domain]
+  properties:
+    topic:
+      type: string
+      description: The topic or problem to brainstorm about
+    domain:
+      type: string
+      description: Domain context (e.g., "Healthcare", "Fintech")
+    rounds:
+      type: number
+      description: Number of debate rounds (default 2, max 4)
+      default: 2
+      minimum: 1
+      maximum: 4
+    style:
+      type: string
+      enum: [freeform, socratic, redteam]
+      description: "freeform: build on ideas, socratic: questioning, redteam: adversarial"
+      default: freeform
+outputSchema:
+  type: object
+  properties:
+    topic:
+      type: string
+    models:
+      type: array
+      items: { type: string }
+    ideas:
+      type: array
+      items:
+        type: object
+        properties:
+          title: { type: string }
+          description: { type: string }
+          model: { type: string }
+    synthesis:
+      type: string
+tags:
+  - brainstorming
+  - multi-model
+  - creativity
+  - debate

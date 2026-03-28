@@ -1,0 +1,3 @@
+[submodule "submodules/brainstorm-mcp"]
+	path = submodules/brainstorm-mcp
+	url = https://github.com/spranab/brainstorm-mcp.git
