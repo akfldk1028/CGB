@@ -7,11 +7,10 @@
  */
 
 import { runAgent, type AgentRunResult } from './agent-runner';
-import { loadWorkflow, type WorkflowStep } from './loader';
+import { loadWorkflow, type WorkflowStep, NAME_TO_ROLE } from './loader';
 import { getImmersionContext } from '@/modules/graph/service';
 import { storeManager } from '@/modules/graph/store';
 import { tournamentSelect } from '@/modules/creativity/evaluation/judge';
-import type { AgentRole } from '@/types/agent';
 
 // ── Types ──
 
@@ -34,17 +33,6 @@ export interface WorkflowResult {
   totalEdgesCreated: number;
   totalDuration: number;
 }
-
-// ── Agent name → role 매핑 ──
-
-const AGENT_ROLE_MAP: Record<string, AgentRole> = {
-  'researcher': 'researcher',
-  'divergent-thinker': 'divergent_thinker',
-  'evaluator': 'evaluator',
-  'iterator': 'iterator',
-  'field-validator': 'field_validator',
-  'creative-director': 'creative_director',
-};
 
 // ── Engine ──
 
@@ -92,7 +80,7 @@ async function runFromYaml(
   const baseContext = `${sessionContext}\n\nPrior Knowledge:\n${graphContext}`;
 
   // 스텝을 의존성 순서로 실행
-  const allSteps = flattenSteps(workflow.steps);
+  const { steps: allSteps, parentToChildren } = flattenSteps(workflow.steps);
   let remaining = [...allSteps];
 
   while (remaining.length > 0) {
@@ -102,7 +90,6 @@ async function runFromYaml(
     );
 
     if (ready.length === 0) {
-      // 순환 의존성 또는 오류 — 남은 스텝 강제 실행
       console.warn('[workflow] circular dependency detected, forcing remaining steps');
       ready.push(remaining[0]);
     }
@@ -115,6 +102,13 @@ async function runFromYaml(
     for (let i = 0; i < ready.length; i++) {
       stepResults.push(results[i]);
       completed.add(ready[i].id);
+    }
+
+    // 병렬 wrapper: 서브스텝 전부 완료 → 부모 ID도 completed 처리
+    for (const [parentId, childIds] of parentToChildren) {
+      if (!completed.has(parentId) && childIds.every((c) => completed.has(c))) {
+        completed.add(parentId);
+      }
     }
 
     remaining = remaining.filter((s) => !completed.has(s.id));
@@ -135,23 +129,35 @@ async function runFromYaml(
   };
 }
 
-/** 병렬 서브스텝을 포함한 스텝 평탄화 */
-function flattenSteps(steps: WorkflowStep[]): WorkflowStep[] {
+/** 병렬 wrapper → 서브스텝 분해 + 부모 ID 추적 정보 반환 */
+interface FlattenResult {
+  steps: WorkflowStep[];
+  /** 부모ID → 서브스텝ID[] — 서브스텝 전부 완료 시 부모도 completed 처리 */
+  parentToChildren: Map<string, string[]>;
+}
+
+function flattenSteps(steps: WorkflowStep[]): FlattenResult {
   const flat: WorkflowStep[] = [];
+  const parentToChildren = new Map<string, string[]>();
+
   for (const step of steps) {
-    if (step.parallel && step.steps) {
-      // 병렬 스텝의 서브스텝들은 동일한 depends_on을 상속
+    if (step.parallel && step.steps && step.steps.length > 0) {
+      const childIds: string[] = [];
       for (const sub of step.steps) {
         flat.push({
           ...sub,
           depends_on: sub.depends_on ?? step.depends_on,
         });
+        childIds.push(sub.id);
       }
+      // 부모 ID → 자식 ID 매핑 등록
+      parentToChildren.set(step.id, childIds);
     } else {
       flat.push(step);
     }
   }
-  return flat;
+
+  return { steps: flat, parentToChildren };
 }
 
 /** 단일 스텝 실행 */
@@ -166,7 +172,7 @@ async function executeStep(
     return { stepId: step.id, output: step.action, nodesCreated: 0, edgesCreated: 0, duration: 0 };
   }
 
-  const role = AGENT_ROLE_MAP[step.agent];
+  const role = NAME_TO_ROLE[step.agent];
   if (!role) {
     return { stepId: step.id, output: `Unknown agent: ${step.agent}`, nodesCreated: 0, edgesCreated: 0, duration: 0 };
   }
@@ -228,7 +234,7 @@ async function runHardcoded(
     ['validate', 'field-validator', `Validate ideas against market reality.`],
     ['iteration', 'iterator', `Iterate top ideas with cross-domain transfer.`],
   ] as const) {
-    const role = AGENT_ROLE_MAP[agentName];
+    const role = NAME_TO_ROLE[agentName];
     if (!role) continue;
     const st = Date.now();
     const result = await runAgent(role, action, context, undefined, domain);

@@ -29,7 +29,7 @@ const ROLE_TO_NAME: Record<AgentRole, string> = {
   creative_director: 'creative-director',
 };
 
-const NAME_TO_ROLE: Record<string, AgentRole> = Object.fromEntries(
+export const NAME_TO_ROLE: Record<string, AgentRole> = Object.fromEntries(
   Object.entries(ROLE_TO_NAME).map(([role, name]) => [name, role as AgentRole])
 );
 
