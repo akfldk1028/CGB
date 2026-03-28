@@ -605,13 +605,10 @@ export async function persistSession(session: CreativeSession): Promise<{
   }
   nodesCreated++;
 
-  // 4. 에이전트 노드 등록 (세션에 참여한 에이전트)
-  const agentRoles = new Set<string>();
-  for (const idea of session.finalIdeas) {
-    if (idea.theory) agentRoles.add(idea.theory);
-  }
-  for (const role of agentRoles) {
-    ensureAgentNode({ role, name: role });
+  // 4. 에이전트 노드 등록 (세션 모드 기반)
+  // light mode → "light_pipeline", heavy mode → agent-runner가 이미 등록함
+  if (session.mode === 'light') {
+    await ensureAgentNode({ role: 'light_pipeline', name: 'Light Pipeline', theory: 'Guilford diverge/converge' });
   }
 
   // 5. 모든 아이디어 노드 + 엣지
@@ -663,9 +660,9 @@ export async function persistSession(session: CreativeSession): Promise<{
       edgesCreated++;
     }
 
-    // Agent → Idea GENERATED_BY 엣지
-    if (idea.theory) {
-      linkAgentToNodes(idea.theory, [idea.id]);
+    // Agent → Idea GENERATED_BY 엣지 (light mode만 — heavy는 agent-runner가 처리)
+    if (session.mode === 'light') {
+      await linkAgentToNodes('light_pipeline', [idea.id]);
       edgesCreated++;
     }
 

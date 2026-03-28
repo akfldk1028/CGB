@@ -46,8 +46,8 @@ function getGraphContext(topic: string, domain: string): string {
 
   if (allNodes.length === 0) return 'No prior knowledge in the graph.';
 
-  // 키워드 기반 관련 노드 검색
-  const tokens = `${topic} ${domain}`.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  // 키워드 기반 관련 노드 검색 (AI, ML 등 2글자도 포함)
+  const tokens = `${topic} ${domain}`.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
   const related = allNodes
     .filter((n) => {
       const hay = `${n.title} ${n.description} ${n.type} ${n.tags?.join(' ') ?? ''}`.toLowerCase();
@@ -87,23 +87,21 @@ function getGraphContext(topic: string, domain: string): string {
   return parts.join('\n');
 }
 
-/** 디베이트 결과를 그래프에 직접 저장 */
-function saveDebateToGraph(
+/** 디베이트 결과를 그래프에 store 인터페이스로 저장 */
+async function saveDebateToGraph(
   topic: string,
   domain: string,
   ideas: { title: string; description: string; model: string }[],
   synthesis: string,
-): { nodeIds: string[]; edgeCount: number } {
+): Promise<{ nodeIds: string[]; edgeCount: number }> {
   const store = storeManager.getGlobalStore();
-  const allNodes = store.getAllNodes();
-  const allEdges = store.getAllEdges();
   const savedNodeIds: string[] = [];
   let edgeCount = 0;
 
   // 각 모델의 아이디어를 Idea 노드로 저장
   for (const idea of ideas) {
-    const nodeId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    allNodes.push({
+    const nodeId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await store.addNode({
       id: nodeId,
       type: 'Idea',
       title: idea.title,
@@ -116,8 +114,8 @@ function saveDebateToGraph(
   }
 
   // 합성 노드 저장
-  const synthesisId = `debate-synth-${Date.now()}`;
-  allNodes.push({
+  const synthesisId = `debate-synth-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await store.addNode({
     id: synthesisId,
     type: 'Idea',
     title: `[Synthesis] ${topic}`,
@@ -130,8 +128,8 @@ function saveDebateToGraph(
 
   // 개별 아이디어 → 합성 엣지 (INSPIRED_BY)
   for (const nodeId of savedNodeIds.slice(0, -1)) {
-    allEdges.push({
-      id: `edge-debate-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+    await store.addEdge({
+      id: `edge-debate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: synthesisId,
       target: nodeId,
       type: 'INSPIRED_BY',
@@ -143,8 +141,8 @@ function saveDebateToGraph(
   // 개별 아이디어끼리 SIMILAR_TO 엣지
   for (let i = 0; i < savedNodeIds.length - 2; i++) {
     for (let j = i + 1; j < savedNodeIds.length - 1; j++) {
-      allEdges.push({
-        id: `edge-sim-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+      await store.addEdge({
+        id: `edge-sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         source: savedNodeIds[i],
         target: savedNodeIds[j],
         type: 'SIMILAR_TO',
@@ -155,9 +153,9 @@ function saveDebateToGraph(
   }
 
   // debate-agent 노드 등록 + GENERATED_BY
-  ensureAgentNode({ role: 'multi_model_debate', name: 'Multi-Model Debate', theory: 'brainstorm-mcp pattern' });
-  linkAgentToNodes('multi_model_debate', savedNodeIds);
-  edgeCount += savedNodeIds.length;
+  await ensureAgentNode({ role: 'multi_model_debate', name: 'Multi-Model Debate', theory: 'brainstorm-mcp pattern' });
+  const genEdges = await linkAgentToNodes('multi_model_debate', savedNodeIds);
+  edgeCount += genEdges.length;
 
   scheduleAutoSave();
   return { nodeIds: savedNodeIds, edgeCount };
@@ -210,7 +208,15 @@ Use this when:
     const style = (params.style as 'freeform' | 'socratic' | 'redteam') ?? 'freeform';
 
     const models = getAvailableModels();
-    if (models.length === 0) models.push('google/gemini-2.5-flash');
+    if (models.length === 0) {
+      return {
+        topic,
+        error: 'No LLM API keys configured. Set at least GOOGLE_GENERATIVE_AI_API_KEY.',
+        models: [],
+        nodesCreated: 0,
+        edgesCreated: 0,
+      };
+    }
 
     // ── 1. 그래프에서 기존 지식 로드 ──
     const graphContext = getGraphContext(topic, domain);
@@ -220,6 +226,8 @@ Use this when:
       : style === 'socratic'
       ? 'Ask probing questions about other perspectives. Dig deeper.'
       : 'Build on others\' ideas and offer your unique perspective.';
+
+    let latestResponses: DebateResponse[] = [];
 
     // ── 2. Round 1: 그래프 지식 기반 독립 관점 생성 ──
     const round1System = `You are a creative thinker generating ideas about: "${topic}" (domain: ${domain}).
@@ -240,6 +248,7 @@ ${styleInstruction}`;
       .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
       .map((r) => r.value);
 
+    latestResponses = round1;
     let history = round1.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
 
     // ── 3. Round 2+: 교차 토론 ──
@@ -263,6 +272,7 @@ Respond to others' ideas. Build on strengths, address weaknesses, propose combin
         .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
         .map((r) => r.value);
 
+      latestResponses = roundResult;
       history += '\n\n' + roundResult.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
     }
 
@@ -285,15 +295,14 @@ Produce:
       `Synthesize the debate.`,
     );
 
-    // ── 5. 결과를 그래프에 저장 ──
-    const lastRoundResponses = round1; // 마지막 라운드 또는 round1
-    const ideas = lastRoundResponses.map((r) => ({
+    // ── 5. 결과를 그래프에 저장 (마지막 라운드의 정제된 아이디어) ──
+    const ideas = latestResponses.map((r) => ({
       title: `[${r.model.split('/')[1]}] ${topic}`,
       description: r.content.slice(0, 500),
       model: r.model,
     }));
 
-    const { nodeIds, edgeCount } = saveDebateToGraph(topic, domain, ideas, synthesisResp.content);
+    const { nodeIds, edgeCount } = await saveDebateToGraph(topic, domain, ideas, synthesisResp.content);
 
     return {
       topic,

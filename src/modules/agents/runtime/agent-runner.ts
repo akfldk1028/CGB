@@ -145,8 +145,7 @@ Always create connections between related ideas using graph_add_edge.`;
   const toolsUsedArr = [...toolsUsedSet];
 
   // ── Agent를 그래프의 1등 시민으로 등록 ──
-  // Agent 노드 확보 (없으면 생성)
-  ensureAgentNode({
+  await ensureAgentNode({
     role,
     name: definition.name ?? role,
     theory: definition.theory,
@@ -164,7 +163,7 @@ Always create connections between related ideas using graph_add_edge.`;
     .filter((id): id is string => !!id);
 
   if (createdNodeIds.length > 0) {
-    linkAgentToNodes(role, createdNodeIds);
+    await linkAgentToNodes(role, createdNodeIds);
   }
 
   return {

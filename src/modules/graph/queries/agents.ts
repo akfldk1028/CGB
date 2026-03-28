@@ -29,23 +29,21 @@ function agentNodeId(role: string, externalId?: string): string {
 
 /** 에이전트 노드 확보 (없으면 생성, 있으면 반환)
  *  세션 시작 시 또는 에이전트 첫 실행 시 호출 */
-export function ensureAgentNode(params: RegisterAgentParams): StoreNode {
+export async function ensureAgentNode(params: RegisterAgentParams): Promise<StoreNode> {
   const store = storeManager.getGlobalStore();
   const id = agentNodeId(params.role, params.externalId);
 
   // 이미 존재하면 반환
-  const existing = store.getAllNodes().find((n) => n.id === id);
+  const existing = await store.getNode(id);
   if (existing) {
-    // tools 업데이트 (새 도구를 쓴 경우)
     if (params.tools?.length) {
       const prev = existing.tags ?? [];
-      const merged = [...new Set([...prev, ...params.tools])];
-      existing.tags = merged;
+      existing.tags = [...new Set([...prev, ...params.tools])];
     }
     return existing;
   }
 
-  // 새 Agent 노드 생성
+  // 새 Agent 노드 생성 — store 인터페이스를 통해 (eviction 포함)
   const node: StoreNode = {
     id,
     type: 'Agent',
@@ -58,20 +56,18 @@ export function ensureAgentNode(params: RegisterAgentParams): StoreNode {
     createdAt: new Date().toISOString(),
   };
 
-  // 동기적으로 직접 추가 (addNode은 async지만 store는 in-memory)
-  store.getAllNodes().push(node);
+  await store.addNode(node);
   scheduleAutoSave();
-
   return node;
 }
 
 /** 에이전트→아이디어 GENERATED_BY 엣지 생성
  *  에이전트가 생성한 모든 노드에 대해 호출 */
-export function linkAgentToNodes(
+export async function linkAgentToNodes(
   agentRole: string,
   nodeIds: string[],
   externalId?: string,
-): StoreEdge[] {
+): Promise<StoreEdge[]> {
   const store = storeManager.getGlobalStore();
   const agentId = agentNodeId(agentRole, externalId);
   const edges: StoreEdge[] = [];
@@ -86,13 +82,13 @@ export function linkAgentToNodes(
     if (existingEdgeSet.has(nodeId)) continue;
 
     const edge: StoreEdge = {
-      id: `edge-gen-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+      id: `edge-gen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       source: agentId,
       target: nodeId,
       type: 'GENERATED_BY',
       createdAt: new Date().toISOString(),
     };
-    store.getAllEdges().push(edge);
+    await store.addEdge(edge);
     edges.push(edge);
   }
 
