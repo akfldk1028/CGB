@@ -1,15 +1,21 @@
-/** Multi-Model Debate Tool — 여러 LLM이 토론하여 더 창의적인 아이디어 생성
+/** Multi-Model Debate Tool — 그래프 지식 기반 멀티모델 토론
  *
  * 영감: brainstorm-mcp (spranab/brainstorm-mcp)
  * 근거: Agent Ideate (IJCAI 2025) — "tool이 있는 에이전트가 86% 더 창의적"
- *       + 다중 관점이 단일 관점보다 창의적 (Barrios 2020)
+ *       Knowledge Distance (Luo 2022) — 먼 개념 연결 = 더 창의적
  *
- * 핵심: 같은 주제를 여러 모델에 던져서 병렬 응답 → 교차 토론 → 합성
- * 결과: 각 관점을 Idea 노드로, 합성을 별도 노드로 그래프에 저장
+ * 흐름:
+ * 1. 그래프에서 기존 지식 로드 (Concept, Idea 노드 + 연결)
+ * 2. 기존 지식을 컨텍스트로 여러 모델에 병렬 전송
+ * 3. 라운드별 교차 토론
+ * 4. 합성 → 결과를 Idea 노드로 그래프에 저장 + GENERATED_BY 엣지
  */
 
 import { generateText } from 'ai';
 import { getModel, getAvailableProviders } from '@/modules/llm/client';
+import { storeManager } from '@/modules/graph/store';
+import { scheduleAutoSave } from '@/modules/graph/persistence';
+import { ensureAgentNode, linkAgentToNodes } from '@/modules/graph/queries/agents';
 import type { AgentTool } from './registry';
 
 interface DebateResponse {
@@ -18,42 +24,146 @@ interface DebateResponse {
   duration: number;
 }
 
-interface DebateRound {
-  round: number;
-  responses: DebateResponse[];
-}
-
-interface DebateResult {
-  topic: string;
-  rounds: DebateRound[];
-  synthesis: string;
-  models: string[];
-  totalDuration: number;
-}
-
 /** 사용 가능한 모델 목록 (API 키 설정된 것만) */
 function getAvailableModels(): string[] {
   const models: string[] = [];
-  const providers = getAvailableProviders();
-
-  for (const p of providers) {
+  for (const p of getAvailableProviders()) {
     if (!p.configured) continue;
     switch (p.provider) {
-      case 'google':
-        models.push('google/gemini-2.5-flash');
-        break;
-      case 'anthropic':
-        models.push('anthropic/claude-sonnet-4.6');
-        break;
-      case 'openai':
-        models.push('openai/gpt-4o');
-        break;
+      case 'google': models.push('google/gemini-2.5-flash'); break;
+      case 'anthropic': models.push('anthropic/claude-sonnet-4.6'); break;
+      case 'openai': models.push('openai/gpt-4o'); break;
     }
   }
   return models;
 }
 
-/** 단일 모델에 프롬프트 전송 (타임아웃 포함) */
+/** 그래프에서 주제 관련 기존 지식 추출 */
+function getGraphContext(topic: string, domain: string): string {
+  const store = storeManager.getGlobalStore();
+  const allNodes = store.getAllNodes();
+  const allEdges = store.getAllEdges();
+
+  if (allNodes.length === 0) return 'No prior knowledge in the graph.';
+
+  // 키워드 기반 관련 노드 검색
+  const tokens = `${topic} ${domain}`.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const related = allNodes
+    .filter((n) => {
+      const hay = `${n.title} ${n.description} ${n.type} ${n.tags?.join(' ') ?? ''}`.toLowerCase();
+      return tokens.some((t) => hay.includes(t));
+    })
+    .slice(0, 15);
+
+  if (related.length === 0) {
+    // 키워드 매치 없으면 최근 노드라도 제공
+    const recent = allNodes.slice(-10);
+    if (recent.length === 0) return 'No prior knowledge in the graph.';
+    return `Graph has ${allNodes.length} nodes but none match "${topic}". Recent ideas for context:\n` +
+      recent.map((n) => `- [${n.type}] ${n.title}: ${n.description?.slice(0, 100)}`).join('\n');
+  }
+
+  const parts: string[] = [
+    `Found ${related.length} related items in the knowledge graph (${allNodes.length} total nodes, ${allEdges.length} edges):`,
+    '',
+  ];
+
+  for (const node of related) {
+    parts.push(`- [${node.type}] "${node.title}": ${node.description?.slice(0, 150) ?? '(no description)'}`);
+  }
+
+  // 관련 노드 간 엣지
+  const nodeIds = new Set(related.map((n) => n.id));
+  const relatedEdges = allEdges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target)).slice(0, 10);
+  if (relatedEdges.length > 0) {
+    parts.push('', 'Connections:');
+    for (const edge of relatedEdges) {
+      const src = related.find((n) => n.id === edge.source);
+      const tgt = related.find((n) => n.id === edge.target);
+      if (src && tgt) parts.push(`  "${src.title}" --[${edge.type}]--> "${tgt.title}"`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+/** 디베이트 결과를 그래프에 직접 저장 */
+function saveDebateToGraph(
+  topic: string,
+  domain: string,
+  ideas: { title: string; description: string; model: string }[],
+  synthesis: string,
+): { nodeIds: string[]; edgeCount: number } {
+  const store = storeManager.getGlobalStore();
+  const allNodes = store.getAllNodes();
+  const allEdges = store.getAllEdges();
+  const savedNodeIds: string[] = [];
+  let edgeCount = 0;
+
+  // 각 모델의 아이디어를 Idea 노드로 저장
+  for (const idea of ideas) {
+    const nodeId = `debate-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    allNodes.push({
+      id: nodeId,
+      type: 'Idea',
+      title: idea.title,
+      description: idea.description,
+      method: 'multi_model_debate',
+      tags: [idea.model, domain],
+      createdAt: new Date().toISOString(),
+    });
+    savedNodeIds.push(nodeId);
+  }
+
+  // 합성 노드 저장
+  const synthesisId = `debate-synth-${Date.now()}`;
+  allNodes.push({
+    id: synthesisId,
+    type: 'Idea',
+    title: `[Synthesis] ${topic}`,
+    description: synthesis.slice(0, 1000),
+    method: 'multi_model_debate',
+    tags: ['synthesis', domain],
+    createdAt: new Date().toISOString(),
+  });
+  savedNodeIds.push(synthesisId);
+
+  // 개별 아이디어 → 합성 엣지 (INSPIRED_BY)
+  for (const nodeId of savedNodeIds.slice(0, -1)) {
+    allEdges.push({
+      id: `edge-debate-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+      source: synthesisId,
+      target: nodeId,
+      type: 'INSPIRED_BY',
+      createdAt: new Date().toISOString(),
+    });
+    edgeCount++;
+  }
+
+  // 개별 아이디어끼리 SIMILAR_TO 엣지
+  for (let i = 0; i < savedNodeIds.length - 2; i++) {
+    for (let j = i + 1; j < savedNodeIds.length - 1; j++) {
+      allEdges.push({
+        id: `edge-sim-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+        source: savedNodeIds[i],
+        target: savedNodeIds[j],
+        type: 'SIMILAR_TO',
+        createdAt: new Date().toISOString(),
+      });
+      edgeCount++;
+    }
+  }
+
+  // debate-agent 노드 등록 + GENERATED_BY
+  ensureAgentNode({ role: 'multi_model_debate', name: 'Multi-Model Debate', theory: 'brainstorm-mcp pattern' });
+  linkAgentToNodes('multi_model_debate', savedNodeIds);
+  edgeCount += savedNodeIds.length;
+
+  scheduleAutoSave();
+  return { nodeIds: savedNodeIds, edgeCount };
+}
+
+/** 단일 모델에 프롬프트 전송 */
 async function callModel(
   modelId: string,
   system: string,
@@ -63,7 +173,6 @@ async function callModel(
   const start = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const result = await generateText({
       model: getModel(modelId),
@@ -80,123 +189,13 @@ async function callModel(
   }
 }
 
-/** 멀티모델 디베이트 실행 */
-async function runDebate(
-  topic: string,
-  domain: string,
-  rounds = 2,
-  style: 'freeform' | 'socratic' | 'redteam' = 'freeform',
-): Promise<DebateResult> {
-  const startTime = Date.now();
-  const models = getAvailableModels();
-
-  if (models.length < 2) {
-    // 모델이 1개뿐이면 일반 브레인스토밍으로 fallback
-    const resp = await callModel(models[0] ?? 'google/gemini-2.5-flash', '', `Generate 5 creative ideas about: ${topic} (domain: ${domain})`);
-    return {
-      topic,
-      rounds: [{ round: 1, responses: [resp] }],
-      synthesis: resp.content,
-      models: models.length > 0 ? models : ['google/gemini-2.5-flash'],
-      totalDuration: Date.now() - startTime,
-    };
-  }
-
-  const styleInstruction = style === 'redteam'
-    ? 'Challenge and find weaknesses in other perspectives. Be critical.'
-    : style === 'socratic'
-    ? 'Ask probing questions about other perspectives. Dig deeper.'
-    : 'Build on others\' ideas and offer your unique perspective.';
-
-  const debateRounds: DebateRound[] = [];
-  let history = '';
-
-  // Round 1: 독립적 관점 생성
-  const round1System = `You are a creative thinker generating ideas about: "${topic}" (domain: ${domain}).
-Be specific, original, and practical. Generate 2-3 distinct ideas.
-${styleInstruction}`;
-
-  const round1Responses = await Promise.allSettled(
-    models.map((m) => callModel(m, round1System, `Generate creative ideas about: ${topic}`))
-  );
-
-  const round1 = round1Responses
-    .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
-    .map((r) => r.value);
-
-  debateRounds.push({ round: 1, responses: round1 });
-  history = round1.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
-
-  // Round 2+: 교차 토론
-  for (let round = 2; round <= rounds; round++) {
-    const roundSystem = `You are debating creative ideas about: "${topic}" (domain: ${domain}).
-Previous round:
-${history.slice(-6000)}
-
-${styleInstruction}
-Respond to others' ideas. Build on strengths, address weaknesses, propose combinations or new angles.`;
-
-    const roundResponses = await Promise.allSettled(
-      models.map((m) => callModel(m, roundSystem, `Continue the debate. Respond to other perspectives and refine your ideas.`))
-    );
-
-    const roundResult = roundResponses
-      .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
-      .map((r) => r.value);
-
-    debateRounds.push({ round, responses: roundResult });
-    history += '\n\n' + roundResult.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
-  }
-
-  // 합성: 첫 번째 모델이 전체 토론을 종합
-  const synthesizer = models[0];
-  const synthesisResp = await callModel(
-    synthesizer,
-    `You are synthesizing a multi-model creative debate about: "${topic}" (domain: ${domain}).
-
-Full debate history:
-${history.slice(-10000)}
-
-Produce a synthesis with:
-1. **Top 3 Ideas** — the best ideas from the debate, combining perspectives
-2. **Key Insight** — the single most creative insight that emerged
-3. **Unresolved Tension** — the biggest disagreement worth exploring further`,
-    `Synthesize the debate into actionable creative output.`,
-  );
-
-  return {
-    topic,
-    rounds: debateRounds,
-    synthesis: synthesisResp.content,
-    models,
-    totalDuration: Date.now() - startTime,
-  };
-}
-
-/** 디베이트 결과 → 그래프 노드 데이터로 변환 */
-function debateToNodeData(result: DebateResult): {
-  ideas: { title: string; description: string; model: string }[];
-  synthesis: string;
-} {
-  // 각 라운드의 응답에서 아이디어 추출 (마지막 라운드 우선)
-  const lastRound = result.rounds[result.rounds.length - 1];
-  const ideas = lastRound.responses.map((r) => ({
-    title: `[${r.model.split('/')[1]}] ${result.topic}`,
-    description: r.content.slice(0, 500),
-    model: r.model,
-  }));
-
-  return { ideas, synthesis: result.synthesis };
-}
-
 export const debateTool: AgentTool = {
   name: 'multi_model_debate',
-  description: `Run a multi-model creative debate. Multiple LLMs (Gemini, Claude, GPT) independently brainstorm on the same topic, then debate across rounds, then synthesize. Produces more diverse and creative ideas than single-model generation. Based on brainstorm-mcp pattern.
+  description: `Run a multi-model creative debate grounded in the knowledge graph. Reads existing ideas/concepts from the graph, sends them as context to multiple LLMs (Gemini, Claude, GPT) for parallel brainstorming, runs cross-model debate rounds, synthesizes, and saves ALL results back to the graph as Idea nodes with GENERATED_BY/INSPIRED_BY/SIMILAR_TO edges.
 
 Use this when:
-- You need diverse perspectives on a topic
-- Single-model brainstorming feels repetitive
-- You want cross-pollination of ideas from different AI "minds"
+- You want diverse perspectives INFORMED by existing graph knowledge
+- Cross-pollination between different AI "minds" + accumulated ideas
 - The topic benefits from adversarial or Socratic examination`,
   parameters: {
     topic: { type: 'string', description: 'The topic or problem to brainstorm about' },
@@ -210,17 +209,102 @@ Use this when:
     const rounds = Math.min(Math.max((params.rounds as number) ?? 2, 1), 4);
     const style = (params.style as 'freeform' | 'socratic' | 'redteam') ?? 'freeform';
 
-    const result = await runDebate(topic, domain, rounds, style);
-    const { ideas, synthesis } = debateToNodeData(result);
+    const models = getAvailableModels();
+    if (models.length === 0) models.push('google/gemini-2.5-flash');
+
+    // ── 1. 그래프에서 기존 지식 로드 ──
+    const graphContext = getGraphContext(topic, domain);
+
+    const styleInstruction = style === 'redteam'
+      ? 'Challenge and find weaknesses in other perspectives. Be critical.'
+      : style === 'socratic'
+      ? 'Ask probing questions about other perspectives. Dig deeper.'
+      : 'Build on others\' ideas and offer your unique perspective.';
+
+    // ── 2. Round 1: 그래프 지식 기반 독립 관점 생성 ──
+    const round1System = `You are a creative thinker generating ideas about: "${topic}" (domain: ${domain}).
+
+EXISTING KNOWLEDGE FROM THE GRAPH:
+${graphContext}
+
+IMPORTANT: Build on existing knowledge. Don't repeat ideas already in the graph. Find GAPS and NOVEL ANGLES.
+Be specific, original, and practical. Generate 2-3 distinct ideas.
+${styleInstruction}`;
+
+    const startTime = Date.now();
+    const round1Responses = await Promise.allSettled(
+      models.map((m) => callModel(m, round1System, `Generate creative ideas about "${topic}" that go BEYOND what's already in the knowledge graph.`))
+    );
+
+    const round1 = round1Responses
+      .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
+      .map((r) => r.value);
+
+    let history = round1.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
+
+    // ── 3. Round 2+: 교차 토론 ──
+    for (let round = 2; round <= rounds; round++) {
+      const roundSystem = `You are debating creative ideas about: "${topic}" (domain: ${domain}).
+
+EXISTING KNOWLEDGE:
+${graphContext.slice(0, 2000)}
+
+Previous debate:
+${history.slice(-6000)}
+
+${styleInstruction}
+Respond to others' ideas. Build on strengths, address weaknesses, propose combinations or new angles.`;
+
+      const roundResponses = await Promise.allSettled(
+        models.map((m) => callModel(m, roundSystem, `Continue the debate. Combine the best ideas from different perspectives.`))
+      );
+
+      const roundResult = roundResponses
+        .filter((r): r is PromiseFulfilledResult<DebateResponse> => r.status === 'fulfilled')
+        .map((r) => r.value);
+
+      history += '\n\n' + roundResult.map((r) => `[${r.model}]: ${r.content}`).join('\n\n');
+    }
+
+    // ── 4. 합성 ──
+    const synthesisResp = await callModel(
+      models[0],
+      `You are synthesizing a multi-model creative debate about: "${topic}" (domain: ${domain}).
+
+GRAPH CONTEXT (existing knowledge):
+${graphContext.slice(0, 2000)}
+
+FULL DEBATE:
+${history.slice(-10000)}
+
+Produce:
+1. **Top 3 Ideas** — best ideas combining all perspectives, going BEYOND existing graph knowledge
+2. **Key Insight** — single most creative insight that emerged
+3. **Unresolved Tension** — biggest disagreement worth exploring further
+4. **Graph Connections** — how these ideas connect to existing concepts in the graph`,
+      `Synthesize the debate.`,
+    );
+
+    // ── 5. 결과를 그래프에 저장 ──
+    const lastRoundResponses = round1; // 마지막 라운드 또는 round1
+    const ideas = lastRoundResponses.map((r) => ({
+      title: `[${r.model.split('/')[1]}] ${topic}`,
+      description: r.content.slice(0, 500),
+      model: r.model,
+    }));
+
+    const { nodeIds, edgeCount } = saveDebateToGraph(topic, domain, ideas, synthesisResp.content);
 
     return {
       topic,
-      models: result.models,
-      rounds: result.rounds.length,
-      totalDuration: result.totalDuration,
-      ideas,
-      synthesis,
-      instruction: 'Save each idea with graph_add_node (type: Idea, method: "multi_model_debate"). Then save the synthesis as a separate Idea node. Connect ideas with SIMILAR_TO edges.',
+      models,
+      rounds,
+      totalDuration: Date.now() - startTime,
+      graphContextUsed: graphContext.length > 50,
+      nodesCreated: nodeIds.length,
+      edgesCreated: edgeCount,
+      synthesis: synthesisResp.content,
+      savedNodeIds: nodeIds,
     };
   },
 };
