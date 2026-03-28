@@ -5,3 +5,5 @@ export { CONNECTION_QUERIES, createEdge, classifyEdge, type CreateEdgeParams } f
 export { SEARCH_QUERIES, tokenSearch } from './search';
 export { TRAVERSAL_QUERIES, bfsNeighborhood } from './traversal';
 export { NOVELTY_QUERY, calculateNoveltyInMemory } from './novelty';
+export { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats, type RegisterAgentParams } from './agents';
+export { queryBrainView, listDomains, listAgents, type BrainView, type BrainViewOptions, type BrainViewResult } from './brain-views';

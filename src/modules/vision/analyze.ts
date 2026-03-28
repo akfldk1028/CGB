@@ -45,7 +45,7 @@ export async function analyzeImage(
   const isUrl = imageSource.startsWith('http');
 
   const imageContent = isBase64
-    ? { type: 'image' as const, image: imageSource }
+    ? { type: 'image' as const, image: Buffer.from(imageSource.split(',')[1], 'base64') }
     : isUrl
       ? { type: 'image' as const, image: new URL(imageSource) }
       : { type: 'image' as const, image: Buffer.from(imageSource, 'base64') };

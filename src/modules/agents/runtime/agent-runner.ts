@@ -17,6 +17,7 @@ import type { AgentRole } from '@/types/agent';
 import { getToolsForRole, type AgentTool } from '../tools/registry';
 import { loadAgent } from './loader';
 import { getModel } from '@/modules/llm/client';
+import { ensureAgentNode, linkAgentToNodes } from '@/modules/graph/queries/agents';
 
 export interface AgentStep {
   step: number;
@@ -141,6 +142,31 @@ Always create connections between related ideas using graph_add_edge.`;
     ? result.text.split('DONE:').pop()?.trim() ?? result.text
     : result.text;
 
+  const toolsUsedArr = [...toolsUsedSet];
+
+  // ── Agent를 그래프의 1등 시민으로 등록 ──
+  // Agent 노드 확보 (없으면 생성)
+  ensureAgentNode({
+    role,
+    name: definition.name ?? role,
+    theory: definition.theory,
+    tools: toolsUsedArr,
+  });
+
+  // 이 에이전트가 생성한 노드들에 GENERATED_BY 엣지 연결
+  const createdNodeIds = steps
+    .filter((s) => s.toolUsed === 'graph_add_node' && s.toolResult)
+    .map((s) => {
+      const res = s.toolResult as Record<string, unknown>;
+      const created = res.created as Record<string, unknown> | undefined;
+      return created?.id as string | undefined;
+    })
+    .filter((id): id is string => !!id);
+
+  if (createdNodeIds.length > 0) {
+    linkAgentToNodes(role, createdNodeIds);
+  }
+
   return {
     role,
     goal,
@@ -148,7 +174,7 @@ Always create connections between related ideas using graph_add_edge.`;
     finalOutput,
     nodesCreated,
     edgesCreated,
-    toolsUsed: [...toolsUsedSet],
+    toolsUsed: toolsUsedArr,
     duration: Date.now() - startTime,
   };
 }

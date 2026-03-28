@@ -19,6 +19,8 @@ import { bfsNeighborhood } from './queries/traversal';
 import { calculateNoveltyInMemory } from './queries/novelty';
 import { toGraph3D } from './transform';
 import { safeLabel, safeRelType, clampInt } from './safe-cypher';
+import { queryBrainView, listDomains, listAgents, type BrainView, type BrainViewOptions } from './queries/brain-views';
+import { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats } from './queries/agents';
 
 const USE_MEMGRAPH = !!(process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD);
 
@@ -379,42 +381,29 @@ export async function getNeighborhood(
 }
 
 /** 전체 그래프 → 3D 시각화 데이터
+ * @param maxNodes — 최대 노드 수
  * @param userId — 제공 시 해당 유저의 노드만 필터 (My Brain 모드)
+ * @param view — brain view 타입 (collective | domain | user | agent | visual)
+ * @param viewOptions — view별 필터 옵션
  */
-export async function getVisualizationData(maxNodes: number = 100, userId?: string) {
+export async function getVisualizationData(
+  maxNodes: number = 100,
+  userId?: string,
+  view?: BrainView,
+  viewOptions?: BrainViewOptions,
+) {
+  // Brain View가 지정된 경우 새 시스템 사용
+  if (view) {
+    const opts: BrainViewOptions = { ...viewOptions, limit: maxNodes };
+    if (view === 'user' && userId) opts.userId = userId;
+    const result = await getBrainVisualization(view, { ...opts, maxNodes });
+    return result.graph3d;
+  }
+
+  // 하위 호환: userId만 제공된 경우
   if (userId) {
-    // My Brain: in-memory store에서 userId 일치 노드만 추출
-    const store = getMemoryStore();
-    const filteredNodes = store.nodes
-      .filter((n) => n.userId === userId)
-      .slice(-maxNodes)
-      .reverse()
-      .map((n): GraphNode => ({
-        id: n.id,
-        type: n.type as GraphNode['type'],
-        title: n.title,
-        description: n.description,
-        method: n.method,
-        score: n.score,
-        imageUrl: n.imageUrl,
-        userId: n.userId,
-        createdAt: n.createdAt,
-      }));
-
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
-    const filteredEdges: GraphEdge[] = store.edges
-      .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
-      .slice(0, maxNodes * 3)
-      .map((e) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: e.type,
-        category: classifyEdge(e.type),
-        createdAt: e.createdAt,
-      }));
-
-    return toGraph3D(filteredNodes, filteredEdges);
+    const result = await getBrainVisualization('user', { userId, maxNodes });
+    return result.graph3d;
   }
 
   // Collective Brain: all nodes
@@ -443,6 +432,54 @@ export async function getStats(): Promise<{
     mode: USE_MEMGRAPH ? 'memgraph' : 'in_memory',
   };
 }
+
+// ════════════════════════════════════════
+// Brain Views — 단일 그래프, 다중 뷰
+// ════════════════════════════════════════
+
+/** 뇌 뷰 쿼리 → 3D 시각화 데이터 */
+export async function getBrainVisualization(
+  view: BrainView,
+  options: BrainViewOptions & { maxNodes?: number } = {},
+) {
+  const result = queryBrainView(view, { ...options, limit: options.maxNodes ?? 200 });
+
+  const nodes = result.nodes.map((n): GraphNode => ({
+    id: n.id,
+    type: n.type as GraphNode['type'],
+    title: n.title,
+    description: n.description,
+    method: n.method,
+    score: n.score,
+    imageUrl: n.imageUrl,
+    userId: n.userId,
+    createdAt: n.createdAt,
+  }));
+
+  const edges: GraphEdge[] = result.edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    category: classifyEdge(e.type),
+    createdAt: e.createdAt,
+  }));
+
+  return {
+    graph3d: toGraph3D(nodes, edges),
+    stats: result.stats,
+    view: result.view,
+  };
+}
+
+/** 도메인 목록 (뷰 선택 UI용) */
+export { listDomains };
+
+/** 에이전트 목록 (뷰 선택 UI용) */
+export { listAgents };
+
+/** 에이전트 노드 등록 (외부 에이전트 MCP 등록용) */
+export { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats };
 
 /** Immersion context 가져오기 — 기존 그래프에서 주제 관련 지식 추출 */
 export async function getImmersionContext(
@@ -568,7 +605,16 @@ export async function persistSession(session: CreativeSession): Promise<{
   }
   nodesCreated++;
 
-  // 4. 모든 아이디어 노드 + 엣지
+  // 4. 에이전트 노드 등록 (세션에 참여한 에이전트)
+  const agentRoles = new Set<string>();
+  for (const idea of session.finalIdeas) {
+    if (idea.theory) agentRoles.add(idea.theory);
+  }
+  for (const role of agentRoles) {
+    ensureAgentNode({ role, name: role });
+  }
+
+  // 5. 모든 아이디어 노드 + 엣지
   const ideaIdMap = new Map<string, string>(); // old id → stored id (중복 방지)
 
   for (const idea of session.finalIdeas) {
@@ -614,6 +660,12 @@ export async function persistSession(session: CreativeSession): Promise<{
     if (idea.parentId && ideaIdMap.has(idea.parentId)) {
       const edgeType = idea.method?.includes('scamper') ? 'SCAMPER_OF' : 'ITERATED_FROM';
       store.edges.push({ id: `e-${Date.now()}-${nodesCreated}c`, source: idea.id, target: idea.parentId, type: edgeType, createdAt: idea.createdAt });
+      edgesCreated++;
+    }
+
+    // Agent → Idea GENERATED_BY 엣지
+    if (idea.theory) {
+      linkAgentToNodes(idea.theory, [idea.id]);
       edgesCreated++;
     }
 
