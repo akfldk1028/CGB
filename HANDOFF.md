@@ -26,8 +26,10 @@
 - **P0-2 SSE 스트리밍**: SessionEmitter 콜백, /api/creative/session/stream, useSessionStream 훅
 - **P1-1 YAML 온톨로지**: _base.yaml + creativity.yaml, ontology-loader.ts (Zod 검증 + base 머지)
 - **P1-2 GDS 알고리즘**: PageRank + Louvain + KNN Similarity (순수 TypeScript)
-- 코드 리뷰: 중복 reduce 수정, 미사용 타입 제거
-- **22→25 commits, GitHub 동기화**
+- **Vitest 36 tests**: algorithms(12) + traces(12) + ontology(6) + seed(6), 전부 통과
+- **합성 데이터 파이프라인**: seed/generate.ts (3 domains × 20 ideas + concepts + traces)
+- 코드 리뷰: 중복 reduce 수정, 미사용 타입 제거, PageRank dangling node fix
+- **22→27 commits, GitHub 동기화**
 
 ---
 
