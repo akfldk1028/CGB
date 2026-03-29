@@ -1,4 +1,4 @@
-# Implementation Status (2026-03-28)
+# Implementation Status (2026-03-29)
 
 ## Source Files: 113 TypeScript files
 
@@ -78,8 +78,22 @@ Remaining known issues:
 - roles/*.ts still dead code
 - brain-views filterByDomain is O(V*E) for large graphs
 
-## Git History (14 commits)
+## Portable Agents (2026-03-29)
+Each agent folder now self-contained:
 ```
+agents/{name}/
+├── agent.yaml     ← 정의 + skills 필드
+├── SOUL.md        ← 정체성
+├── tools/         ← YAML 스키마 (이 에이전트 전용)
+└── skills/        ← SKILL.md (이 에이전트 전용)
+```
+Total: 62 files across 6 agents. 다른 AI/WMCP가 에이전트 폴더만 복사해도 동작.
+
+## Git History (19 commits)
+```
+e06faed feat: portable agents — tools + skills inside each agent folder
+ceb79d6 fix: each brain view shows genuinely different graph
+f920afe feat: API brain view params + frontend view→API wiring
 8326257 fix: code review P0/P1 — store interface, last-round save, phantom agents
 fc0d91a fix: debate tool reads graph context + saves results to graph
 4544f59 fix: MCP 13/13 tools + tsconfig exclude submodules
