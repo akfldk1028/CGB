@@ -25,8 +25,9 @@
 - **P0-1 Reasoning Trace**: DecisionTrace + TraceStep 노드, queries/traces.ts, agent-runner에 자동 저장
 - **P0-2 SSE 스트리밍**: SessionEmitter 콜백, /api/creative/session/stream, useSessionStream 훅
 - **P1-1 YAML 온톨로지**: _base.yaml + creativity.yaml, ontology-loader.ts (Zod 검증 + base 머지)
+- **P1-2 GDS 알고리즘**: PageRank + Louvain + KNN Similarity (순수 TypeScript)
 - 코드 리뷰: 중복 reduce 수정, 미사용 타입 제거
-- **22→23 commits, GitHub 동기화**
+- **22→25 commits, GitHub 동기화**
 
 ---
 
@@ -77,10 +78,10 @@
 - 스키마 검증: Zod (CGB) 또는 Pydantic-style
 - 장점: 음악, 산업디자인, 연구 등 커스텀 창의성 도메인 무한 확장
 
-#### 4. GDS 알고리즘 (Memgraph 또는 Neo4j 전환 시)
-- Louvain: 아이디어 클러스터 자동 발견
-- PageRank: 가장 핵심적인 Concept 노드 식별
-- FastRP + KNN: 벡터 기반 아이디어 유사도 (BFS보다 정교)
+#### 4. ✅ GDS 알고리즘 (순수 TypeScript, Neo4j 불필요)
+- ✅ Louvain: 아이디어 클러스터 자동 발견 (modularity 최적화)
+- ✅ PageRank: 가장 핵심적인 노드 식별 (power iteration, damping 0.85)
+- ✅ KNN Similarity: Jaccard on neighbor sets (FastRP 대체, 구조적 유사도)
 
 ### P2 — 나중
 
