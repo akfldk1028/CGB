@@ -8,3 +8,8 @@ export { NOVELTY_QUERY, calculateNoveltyInMemory } from './novelty';
 export { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats, type RegisterAgentParams } from './agents';
 export { queryBrainView, listDomains, listAgents, type BrainView, type BrainViewOptions, type BrainViewResult } from './brain-views';
 export { saveTrace, getTracesBySession, getTraceSteps, getTracesByAgent, getTraceStats, TRACE_QUERIES, type SaveTraceParams, type TraceStepInput } from './traces';
+
+// Graph Algorithms (pure TypeScript, no GDS dependency)
+export { runPageRank, type PageRankResult, type PageRankOptions } from '../algorithms/pagerank';
+export { runLouvain, type CommunityResult, type LouvainOptions, type LouvainSummary } from '../algorithms/louvain';
+export { runSimilarity, findSimilarNodes, type SimilarityPair, type SimilarityOptions } from '../algorithms/similarity';
