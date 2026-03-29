@@ -37,6 +37,7 @@
 - [research/visual-graph-papers.md](research/visual-graph-papers.md) — 16 image-to-graph papers survey
 - [research/lecture-audit.md](research/lecture-audit.md) — Lecture content audit
 - [research/academic-rigor-fixes.md](research/academic-rigor-fixes.md) — Academic rigor improvements
+- [research/ccg-comparison.md](research/ccg-comparison.md) — create-context-graph(Neo4j Labs) vs CGB, 빼올 패턴 5개
 
 ## Graph Visualization
 - [graph/visualization.md](graph/visualization.md) — 3D rendering styles and details
