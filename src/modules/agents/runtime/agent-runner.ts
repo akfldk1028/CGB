@@ -18,6 +18,8 @@ import { getToolsForRole, type AgentTool } from '../tools/registry';
 import { loadAgent } from './loader';
 import { getModel } from '@/modules/llm/client';
 import { ensureAgentNode, linkAgentToNodes } from '@/modules/graph/queries/agents';
+import { saveTrace } from '@/modules/graph/queries/traces';
+import { NOOP_EMITTER, type SessionEmitter } from '../events';
 
 export interface AgentStep {
   step: number;
@@ -71,7 +73,9 @@ export async function runAgent(
   goal: string,
   context?: string,
   maxSteps = 10,
-  domain?: string
+  domain?: string,
+  sessionId?: string,
+  emitter: SessionEmitter = NOOP_EMITTER
 ): Promise<AgentRunResult> {
   const startTime = Date.now();
   // YAML 우선, fallback to hardcoded definitions
@@ -114,19 +118,49 @@ Always create connections between related ideas using graph_add_edge.`;
           const tc = toolCalls[i] as any;
           const name = tc.toolName as string;
           toolsUsedSet.add(name);
-          if (name === 'graph_add_node') nodesCreated++;
-          if (name === 'graph_add_edge') edgesCreated++;
+          const isNodeAdd = name === 'graph_add_node';
+          const isEdgeAdd = name === 'graph_add_edge';
+          if (isNodeAdd) nodesCreated++;
+          if (isEdgeAdd) edgesCreated++;
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const tr = toolResults?.[i] as any;
+          const stepIdx = steps.length;
+
           steps.push({
-            step: steps.length,
+            step: stepIdx,
             thought: text || `Using ${name}`,
             toolUsed: name,
             toolInput: (tc.input ?? tc.args) as Record<string, unknown>,
             toolResult: tr?.result ?? tr?.output,
             timestamp: new Date().toISOString(),
           });
+
+          // SSE: tool_result 이벤트 (call+result 통합)
+          emitter.emit({
+            type: 'tool_result',
+            agent: role,
+            tool: name,
+            step: stepIdx,
+            nodeCreated: isNodeAdd,
+            edgeCreated: isEdgeAdd,
+          });
+
+          // SSE: 그래프 변경 시 graph_update
+          if (isNodeAdd && tr) {
+            const created = (tr?.result ?? tr?.output) as Record<string, unknown> | undefined;
+            const createdNode = (created as { created?: { id?: string; type?: string; title?: string } })?.created;
+            emitter.emit({
+              type: 'graph_update',
+              nodeCount: nodesCreated,
+              edgeCount: edgesCreated,
+              newNode: createdNode?.id ? {
+                id: createdNode.id,
+                type: createdNode.type ?? 'Idea',
+                title: createdNode.title ?? '',
+              } : undefined,
+            });
+          }
         }
       } else if (text) {
         steps.push({
@@ -166,6 +200,34 @@ Always create connections between related ideas using graph_add_edge.`;
     await linkAgentToNodes(role, createdNodeIds);
   }
 
+  const duration = Date.now() - startTime;
+
+  // ── Reasoning Trace: 사고과정을 그래프에 영구 저장 ──
+  if (sessionId && steps.length > 0) {
+    const traceResult = await saveTrace({
+      sessionId,
+      agentRole: role,
+      goal,
+      summary: finalOutput.slice(0, 500),
+      duration,
+      toolsUsed: toolsUsedArr,
+      steps: steps.map((s) => ({
+        stepIndex: s.step,
+        thought: s.thought,
+        toolUsed: s.toolUsed,
+        toolInput: s.toolInput,
+        toolResult: s.toolResult,
+        timestamp: s.timestamp,
+      })),
+    });
+    emitter.emit({
+      type: 'trace_saved',
+      agent: role,
+      traceId: traceResult.traceNode.id,
+      stepCount: traceResult.stepNodes.length,
+    });
+  }
+
   return {
     role,
     goal,
@@ -174,6 +236,6 @@ Always create connections between related ideas using graph_add_edge.`;
     nodesCreated,
     edgesCreated,
     toolsUsed: toolsUsedArr,
-    duration: Date.now() - startTime,
+    duration,
   };
 }

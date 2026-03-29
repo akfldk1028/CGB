@@ -125,6 +125,47 @@ export interface ConceptNode {
   createdAt: string;
 }
 
+/** 보조 노드: DecisionTrace — 에이전트 사고과정 기록
+ *  하나의 agent run = 하나의 DecisionTrace.
+ *  CCG 3-Memory-Types 패턴: episodic memory의 그래프 구현. */
+export interface DecisionTraceNode {
+  id: string;
+  type: 'DecisionTrace';
+  /** 어떤 에이전트가 실행했는지 */
+  agentRole: string;
+  /** 실행 목표 */
+  goal: string;
+  /** 최종 출력 요약 */
+  summary: string;
+  /** 총 스텝 수 */
+  stepCount: number;
+  /** 사용된 도구 목록 */
+  toolsUsed: string[];
+  /** 실행 시간 (ms) */
+  duration: number;
+  sessionId: string;
+  createdAt: string;
+}
+
+/** 보조 노드: TraceStep — DecisionTrace 안의 개별 사고 단계
+ *  agent의 observe→think→act 각 단계를 노드로 저장. */
+export interface TraceStepNode {
+  id: string;
+  type: 'TraceStep';
+  /** 스텝 번호 (0-based) */
+  stepIndex: number;
+  /** 에이전트의 사고 내용 */
+  thought: string;
+  /** 사용한 도구 (없으면 사고만) */
+  toolUsed?: string;
+  /** 도구 입력 */
+  toolInput?: Record<string, unknown>;
+  /** 도구 결과 요약 */
+  toolResultSummary?: string;
+  traceId: string;
+  createdAt: string;
+}
+
 /** 보조 노드: Session — 창의 세션 기록 */
 export interface SessionNode {
   id: string;
@@ -223,7 +264,11 @@ export type StructuralEdge =
   | 'PRODUCED_IN'        // 세션에서 생성
   | 'USES_CONCEPT'       // 아이디어가 개념을 사용
   | 'ADDRESSES_TOPIC'    // 아이디어가 주제를 다룸
-  | 'PRODUCES';          // 아이디어에서 산출물 생성
+  | 'PRODUCES'           // 아이디어에서 산출물 생성
+  // Reasoning Trace 관계
+  | 'HAS_TRACE'          // Session → DecisionTrace (세션의 사고 기록)
+  | 'HAS_STEP'           // DecisionTrace → TraceStep (트레이스의 단계)
+  | 'EXECUTED';          // Agent → DecisionTrace (에이전트가 실행)
 
 /** 전체 엣지 타입 */
 export type EdgeType = CreationEdge | SemanticEdge | StructuralEdge;
@@ -250,6 +295,11 @@ CREATE INDEX ON :Session(id);
 CREATE INDEX ON :Session(status);
 CREATE INDEX ON :Agent(id);
 CREATE INDEX ON :Agent(role);
+CREATE INDEX ON :DecisionTrace(id);
+CREATE INDEX ON :DecisionTrace(sessionId);
+CREATE INDEX ON :DecisionTrace(agentRole);
+CREATE INDEX ON :TraceStep(id);
+CREATE INDEX ON :TraceStep(traceId);
 `;
 
 /** 스키마 요약 (사람/에이전트 읽기용) */
@@ -272,4 +322,28 @@ Level 3: Artifact
   Concrete outputs: narratives, prototypes, papers.
 
 Auxiliary: Concept (shared across ideas), Session (history), Agent (who did what)
+
+Reasoning Trace (episodic memory):
+  Session → (HAS_TRACE) → DecisionTrace → (HAS_STEP) → TraceStep
+  Agent → (EXECUTED) → DecisionTrace
+  Each agent run = one trace. Each tool call or thought = one step.
 `;
+
+// ═══════════════════════════════════════════
+// YAML 온톨로지 연동
+// ═══════════════════════════════════════════
+
+/** YAML 온톨로지에서 Cypher + Summary 동적 생성
+ *
+ * 위의 SCHEMA_CYPHER/SCHEMA_SUMMARY는 하드코딩 fallback.
+ * 런타임에 YAML이 로딩되면 아래 함수들로 동적 생성.
+ * 도메인별로 다른 스키마를 사용할 수 있게 됨.
+ *
+ * 사용:
+ *   import { loadDomain } from './ontology-loader';
+ *   const ontology = await loadDomain('creativity');
+ *   const cypher = ontology.generateCypher();
+ *   const summary = ontology.generateSummary();
+ */
+export { loadDomain, listDomains, validateNodeType, validateEdgeType } from './ontology-loader';
+export type { LoadedOntology, NodeTypeDef, EdgeTypeDef, PropertyDef, AgentRoleDef } from './ontology-loader';

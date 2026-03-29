@@ -7,3 +7,4 @@ export { TRAVERSAL_QUERIES, bfsNeighborhood } from './traversal';
 export { NOVELTY_QUERY, calculateNoveltyInMemory } from './novelty';
 export { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats, type RegisterAgentParams } from './agents';
 export { queryBrainView, listDomains, listAgents, type BrainView, type BrainViewOptions, type BrainViewResult } from './brain-views';
+export { saveTrace, getTracesBySession, getTraceSteps, getTracesByAgent, getTraceStats, TRACE_QUERIES, type SaveTraceParams, type TraceStepInput } from './traces';

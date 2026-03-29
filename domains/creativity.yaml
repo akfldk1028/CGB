@@ -1,0 +1,52 @@
+# CGB Creativity Domain — 기본 창의성 도메인
+# inherits: _base의 모든 노드/엣지를 상속하고 도메인 특화 확장 가능
+inherits: _base
+
+domain:
+  id: creativity
+  name: Creative Ideation
+  description: "일반 창의적 아이디어 생성 + 평가 + 변주"
+  tagline: "Ideas compound forever"
+
+# 도메인 특화 노드 (base에 추가)
+# 향후 music, industrial-design, research 등 도메인에서 여기에 추가
+# 예: music.yaml → Chord, Melody, Rhythm 노드 + HARMONIZES, MODULATES 엣지
+node_types: {}
+
+# 도메인 특화 엣지 (base에 추가)
+edge_types: {}
+
+# 도메인 특화 generation methods (base에 추가)
+generation_methods: []
+
+# 에이전트 역할 정의
+agent_roles:
+  - role: researcher
+    name: Domain Researcher
+    theory: "Csikszentmihalyi Immersion"
+    tools: [graph_search, web_search, graph_add_node, graph_add_edge]
+
+  - role: divergent_thinker
+    name: Divergent Thinker
+    theory: "Guilford Divergent Thinking"
+    tools: [brainstorm, scamper, triz_principle, graph_add_node, graph_add_edge]
+
+  - role: evaluator
+    name: Idea Evaluator
+    theory: "Amabile Componential Theory"
+    tools: [evaluate_idea, graph_search]
+
+  - role: field_validator
+    name: Field Validator
+    theory: "Csikszentmihalyi Field Validation"
+    tools: [measure_novelty, web_search]
+
+  - role: iterator
+    name: Idea Iterator
+    theory: "4I's Iteration Phase"
+    tools: [scamper, triz_principle, measure_novelty, graph_add_node, graph_add_edge]
+
+# 시각화 오버라이드 (base 위에 덮어씀)
+visualization:
+  background: "#0a0a0a"
+  fog_density: 0.002

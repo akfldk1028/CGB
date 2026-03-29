@@ -1,0 +1,321 @@
+# CGB Base Ontology - 창의적 그래프 브레인의 공통 기반
+# 학술 근거: Csikszentmihalyi(1996), Barrios(2020), Geneplore(Finke 1992), Rhodes(1961)
+version: "1.0"
+
+# ═══════════════════════════════════════
+# NODE TYPES — 4계층 + 보조 노드
+# ═══════════════════════════════════════
+
+node_types:
+  Domain:
+    level: 0
+    description: "Csikszentmihalyi의 Domain — 규칙, 관습, 지식체계"
+    color: "#3b82f6"
+    icon: globe
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: parentDomainId
+        type: string
+      - name: keywords
+        type: string[]
+
+  Topic:
+    level: 1
+    description: "도메인 안의 구체적 주제/문제. 하나의 창의 세션 = 하나의 Topic"
+    color: "#8b5cf6"
+    icon: target
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: domainId
+        type: string
+        required: true
+      - name: problemStatement
+        type: string
+      - name: targetAudience
+        type: string
+      - name: sessionId
+        type: string
+
+  Idea:
+    level: 2
+    description: "핵심 단위. Geneplore의 pre-inventive structure"
+    color: "#ffd700"
+    icon: lightbulb
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: topicId
+        type: string
+        required: true
+      - name: generationMethod
+        type: generation_method
+        required: true
+      - name: authorAgent
+        type: string
+        required: true
+      - name: parentIdeaId
+        type: string
+      - name: maturityStage
+        type: string
+        enum: [raw, explored, refined, validated]
+      - name: phase
+        type: string
+        enum: [immersion, inspiration, isolation, iteration]
+      - name: tags
+        type: string[]
+
+  Artifact:
+    level: 3
+    description: "아이디어에서 파생된 구체적 산출물. Rhodes 4P's의 Product"
+    color: "#10b981"
+    icon: package
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: ideaId
+        type: string
+        required: true
+      - name: artifactType
+        type: string
+        enum: [narrative, prototype, business_model, paper, code, design]
+
+  Concept:
+    level: aux
+    description: "재사용 가능한 핵심 개념. Csikszentmihalyi의 Domain symbols"
+    color: "#4fc3f7"
+    icon: atom
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: domainIds
+        type: string[]
+      - name: references
+        type: string[]
+
+  Session:
+    level: aux
+    description: "창의 세션 기록"
+    color: "#f97316"
+    icon: clock
+    properties:
+      - name: topicId
+        type: string
+        required: true
+      - name: status
+        type: string
+        enum: [active, completed, failed]
+      - name: agents
+        type: string[]
+
+  Agent:
+    level: aux
+    description: "에이전트 자체도 노드. Rhodes 4P's의 Person (AI 재해석)"
+    color: "#22c55e"
+    icon: bot
+    properties:
+      - name: role
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: theory
+        type: string
+      - name: totalIdeasGenerated
+        type: number
+      - name: toolsUsed
+        type: string[]
+
+  DecisionTrace:
+    level: aux
+    description: "에이전트 사고과정 기록. CCG episodic memory 패턴"
+    color: "#ef4444"
+    icon: brain
+    properties:
+      - name: agentRole
+        type: string
+        required: true
+      - name: goal
+        type: string
+        required: true
+      - name: summary
+        type: string
+      - name: stepCount
+        type: number
+      - name: toolsUsed
+        type: string[]
+      - name: duration
+        type: number
+      - name: sessionId
+        type: string
+
+  TraceStep:
+    level: aux
+    description: "DecisionTrace 안의 개별 사고 단계"
+    color: "#f87171"
+    icon: step-forward
+    properties:
+      - name: stepIndex
+        type: number
+        required: true
+      - name: thought
+        type: string
+        required: true
+      - name: toolUsed
+        type: string
+      - name: traceId
+        type: string
+
+# ═══════════════════════════════════════
+# EDGE TYPES — 3계층 관계
+# ═══════════════════════════════════════
+
+edge_types:
+  # ── Creation (생성 관계: 어떻게 만들어졌나) ──
+  INSPIRED_BY:
+    category: creation
+    description: "~에서 영감"
+  ITERATED_FROM:
+    category: creation
+    description: "~의 변주 (4I's Iteration)"
+  COMBINED_FROM:
+    category: creation
+    description: "두 아이디어 결합 (SCAMPER Combine)"
+  SCAMPER_OF:
+    category: creation
+    description: "SCAMPER 기법 적용 결과"
+  DERIVED_FROM:
+    category: creation
+    description: "일반적 파생"
+  GENERATED_BY:
+    category: creation
+    description: "에이전트가 생성 (Agent → Idea)"
+    source: Agent
+    target: "*"
+  RESEARCHED_FROM:
+    category: creation
+    description: "웹 검색에서 발견"
+
+  # ── Semantic (의미 관계: 아이디어 간 의미 구조) ──
+  CONTRADICTS:
+    category: semantic
+    description: "반대/모순"
+  SUPPORTS:
+    category: semantic
+    description: "뒷받침/강화"
+  CAUSES:
+    category: semantic
+    description: "인과 (A이면 B)"
+  SIMILAR_TO:
+    category: semantic
+    description: "유사 (but 다른 아이디어)"
+  ALTERNATIVE_TO:
+    category: semantic
+    description: "대안 (같은 문제, 다른 접근)"
+  PREREQUISITE_OF:
+    category: semantic
+    description: "선행 조건"
+  EXTENDS:
+    category: semantic
+    description: "확장"
+
+  # ── Structural (구조 관계: 계층/소속/분류) ──
+  PART_OF:
+    category: structural
+    description: "부분-전체"
+  GENERALIZES:
+    category: structural
+    description: "일반화 (하위→상위)"
+  SPECIALIZES:
+    category: structural
+    description: "특수화 (상위→하위)"
+  BELONGS_TO:
+    category: structural
+    description: "도메인/세션 소속"
+  PRODUCED_IN:
+    category: structural
+    description: "세션에서 생성"
+  USES_CONCEPT:
+    category: structural
+    description: "아이디어가 개념을 사용"
+  ADDRESSES_TOPIC:
+    category: structural
+    description: "아이디어가 주제를 다룸"
+  PRODUCES:
+    category: structural
+    description: "아이디어에서 산출물 생성"
+  HAS_TRACE:
+    category: structural
+    description: "Session → DecisionTrace"
+    source: Session
+    target: DecisionTrace
+  HAS_STEP:
+    category: structural
+    description: "DecisionTrace → TraceStep"
+    source: DecisionTrace
+    target: TraceStep
+  EXECUTED:
+    category: structural
+    description: "Agent → DecisionTrace"
+    source: Agent
+    target: DecisionTrace
+
+# ═══════════════════════════════════════
+# GENERATION METHODS — 아이디어 생성 기법
+# ═══════════════════════════════════════
+
+generation_methods:
+  - divergent_brainstorm
+  - convergent_selection
+  - scamper_substitute
+  - scamper_combine
+  - scamper_adapt
+  - scamper_modify
+  - scamper_put_to_other_use
+  - scamper_eliminate
+  - scamper_rearrange
+  - role_storming
+  - mind_mapping
+  - iteration_semantic
+  - iteration_structural
+  - web_research
+  - graph_traversal
+  - human_input
+  - agent_autonomous
+  - visual_inspiration
+  - scene_graph_extract
+  - multi_model_debate
+
+# ═══════════════════════════════════════
+# VISUALIZATION — 3D ForceGraph 기본 설정
+# ═══════════════════════════════════════
+
+visualization:
+  edge_colors:
+    creation: "#ff6b6b"
+    semantic: "#4ecdc4"
+    structural: "#95a5a6"
+  default_node_size: 8
+  highlighted_node_size: 14

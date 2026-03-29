@@ -12,6 +12,7 @@ import { runAgent, type AgentRunResult } from './agent-runner';
 import { getMemoryStore } from '../tools/graph-tools';
 import { getImmersionContext } from '@/modules/graph/service';
 import { tournamentSelect } from '@/modules/creativity/evaluation/judge';
+import { NOOP_EMITTER, type SessionEmitter } from '../events';
 
 export interface MultiAgentResult {
   sessionId: string;
@@ -28,11 +29,14 @@ export interface MultiAgentResult {
 /** 4I's 멀티에이전트 파이프라인 — 진짜 자율 에이전트 버전 */
 export async function runMultiAgentPipeline(
   topic: string,
-  domain: string
+  domain: string,
+  emitter: SessionEmitter = NOOP_EMITTER
 ): Promise<MultiAgentResult> {
   const sessionId = `session-${Date.now()}`;
   const startTime = Date.now();
   const agentResults: AgentRunResult[] = [];
+
+  emitter.emit({ type: 'session_start', sessionId, topic, domain });
 
   // Immersion: Graph DB에서 기존 지식 검색
   let graphContext = '';
@@ -45,49 +49,63 @@ export async function runMultiAgentPipeline(
   const baseContext = `Topic: "${topic}"\nDomain: "${domain}"\nSession: ${sessionId}\n\nPrior Knowledge from Graph DB:\n${graphContext}`;
 
   // Phase 1: IMMERSION — researcher가 자율적으로 웹 검색 + Graph 탐색
+  emitter.emit({ type: 'phase_start', phase: 'immersion', agent: 'researcher' });
   const researchResult = await runAgent(
     'researcher',
     `Research the domain "${domain}" for topic "${topic}". You have prior knowledge from the graph database (see context). Build on existing knowledge, find NEW trends and gaps. Save key findings as Concept nodes in the graph.`,
     baseContext,
     8,
-    domain
+    domain,
+    sessionId,
+    emitter
   );
   agentResults.push(researchResult);
+  emitter.emit({ type: 'phase_end', phase: 'immersion', agent: 'researcher', duration: researchResult.duration, nodesCreated: researchResult.nodesCreated, edgesCreated: researchResult.edgesCreated });
 
   const truncate = (s: string, max = 500) => s.length > max ? s.slice(0, max) + '...[truncated]' : s;
 
   const researchContext = `${baseContext}\n\nResearch findings:\n${truncate(researchResult.finalOutput)}`;
 
   // Phase 2: INSPIRATION — divergent_thinker가 자율적으로 아이디어 생성
+  emitter.emit({ type: 'phase_start', phase: 'inspiration', agent: 'divergent_thinker' });
   const divergentResult = await runAgent(
     'divergent_thinker',
     `Generate 10+ creative ideas about "${topic}" in "${domain}". Use SCAMPER, brainstorming, TRIZ principles, and save everything to the graph.`,
     researchContext,
     12,
-    domain
+    domain,
+    sessionId,
+    emitter
   );
   agentResults.push(divergentResult);
+  emitter.emit({ type: 'phase_end', phase: 'inspiration', agent: 'divergent_thinker', duration: divergentResult.duration, nodesCreated: divergentResult.nodesCreated, edgesCreated: divergentResult.edgesCreated });
 
   const ideaContext = `${researchContext}\n\nGenerated ideas:\n${truncate(divergentResult.finalOutput)}`;
 
   // Phase 3: ISOLATION — evaluator + field_validator 독립 실행 (병렬)
+  emitter.emit({ type: 'phase_start', phase: 'isolation', agent: 'evaluator+field_validator' });
   const [evalResult, fieldResult] = await Promise.all([
     runAgent(
       'evaluator',
       `Evaluate all generated ideas using the 6-dimensional framework (Amabile 3 + Agent Ideate 3). Score each on: domainRelevance, creativeThinking, intrinsicMotivation, specificity, marketNeed, competitiveAdvantage. Rank them.`,
       ideaContext,
       8,
-      domain
+      domain,
+      sessionId,
+      emitter
     ),
     runAgent(
       'field_validator',
       `Validate the generated ideas against market reality. Use measure_novelty to check knowledge distance. Check originality, feasibility, demand.`,
       ideaContext,
       8,
-      domain
+      domain,
+      sessionId,
+      emitter
     ),
   ]);
   agentResults.push(evalResult, fieldResult);
+  emitter.emit({ type: 'phase_end', phase: 'isolation', agent: 'evaluator+field_validator', duration: Math.max(evalResult.duration, fieldResult.duration), nodesCreated: evalResult.nodesCreated + fieldResult.nodesCreated, edgesCreated: evalResult.edgesCreated + fieldResult.edgesCreated });
 
   // Phase 3.5: LLM-as-Judge tournament — 상위 아이디어 자동 선별
   const store = getMemoryStore();
@@ -103,23 +121,32 @@ export async function runMultiAgentPipeline(
   const evalContext = `${ideaContext}\n\nEvaluation:\n${truncate(evalResult.finalOutput)}\n\nField Validation:\n${truncate(fieldResult.finalOutput)}${tournamentContext}`;
 
   // Phase 4: ITERATION — iterator가 상위 아이디어를 자율적으로 변주
+  emitter.emit({ type: 'phase_start', phase: 'iteration', agent: 'iterator' });
   const iterResult = await runAgent(
     'iterator',
     `Take the top-rated ideas and create meaningful iterations. Use measure_novelty to find high-novelty angles. Apply triz_principle for contradiction-based innovation. Find universal themes, apply to new contexts.`,
     evalContext,
     10,
-    domain
+    domain,
+    sessionId,
+    emitter
   );
   agentResults.push(iterResult);
+  emitter.emit({ type: 'phase_end', phase: 'iteration', agent: 'iterator', duration: iterResult.duration, nodesCreated: iterResult.nodesCreated, edgesCreated: iterResult.edgesCreated });
+
+  const totalNodes = agentResults.reduce((sum, r) => sum + r.nodesCreated, 0);
+  const totalEdges = agentResults.reduce((sum, r) => sum + r.edgesCreated, 0);
+  const totalDuration = Date.now() - startTime;
+  emitter.emit({ type: 'complete', sessionId, totalNodes, totalEdges, duration: totalDuration });
 
   return {
     sessionId,
     topic,
     domain,
     agentResults,
-    totalNodesCreated: agentResults.reduce((sum, r) => sum + r.nodesCreated, 0),
-    totalEdgesCreated: agentResults.reduce((sum, r) => sum + r.edgesCreated, 0),
-    totalDuration: Date.now() - startTime,
+    totalNodesCreated: totalNodes,
+    totalEdgesCreated: totalEdges,
+    totalDuration,
     graphSnapshot: { nodes: [...store.nodes], edges: [...store.edges] },
   };
 }
