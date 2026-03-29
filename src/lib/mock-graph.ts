@@ -114,6 +114,54 @@ export function generateMockGraph(nodeCount = 80, _edgeCount?: number): Graph3DD
     }
   }
 
+  // Agent 노드 — 5개 에이전트 (Agent 뷰용)
+  const AGENTS = [
+    { id: 'agent-researcher', name: 'Researcher', method: 'web_research' },
+    { id: 'agent-divergent_thinker', name: 'Divergent Thinker', method: 'divergent_brainstorm' },
+    { id: 'agent-evaluator', name: 'Evaluator', method: 'convergent_selection' },
+    { id: 'agent-iterator', name: 'Iterator', method: 'iteration_semantic' },
+    { id: 'agent-multi_model_debate', name: 'Multi-Model Debate', method: 'multi_model_debate' },
+  ];
+
+  for (const agent of AGENTS) {
+    nodes.push({
+      id: agent.id,
+      name: agent.name,
+      type: 'Agent',
+      val: NODE_STYLES.Agent.size + 2,
+      color: NODE_STYLES.Agent.color,
+    });
+  }
+
+  // GENERATED_BY 엣지 — 각 에이전트가 아이디어 생성
+  for (let i = 0; i < ideaIds.length; i++) {
+    const agentIdx = i % AGENTS.length;
+    links.push(makeLink(AGENTS[agentIdx].id, ideaIds[i], 'GENERATED_BY'));
+    // 노드에 method 반영 (에이전트별)
+    const ideaNode = nodes.find((n) => n.id === ideaIds[i]);
+    if (ideaNode) ideaNode.method = AGENTS[agentIdx].method;
+  }
+
+  // userId 태깅 — 도메인 0,1은 user-alpha, 도메인 2는 user-beta (My Brain 뷰용)
+  for (const node of nodes) {
+    if (node.type === 'Idea' || node.type === 'Concept') {
+      const domainIdx = node.id.includes('-d0-') || node.id.includes('-d1-') ? 0 : 1;
+      (node as any).userId = domainIdx === 0 ? 'user-alpha' : 'user-beta';
+    }
+  }
+
+  // imageUrl — 일부 아이디어에 샘플 이미지 (Visual 뷰용)
+  const IMAGE_URLS = [
+    'https://picsum.photos/seed/cgb1/200/200',
+    'https://picsum.photos/seed/cgb2/200/200',
+    'https://picsum.photos/seed/cgb3/200/200',
+    'https://picsum.photos/seed/cgb4/200/200',
+  ];
+  for (let i = 0; i < Math.min(4, ideaIds.length); i++) {
+    const ideaNode = nodes.find((n) => n.id === ideaIds[i]);
+    if (ideaNode) ideaNode.imageUrl = IMAGE_URLS[i];
+  }
+
   // 교차 도메인 영감 (cross-pollination) — 소수의 먼 연결
   const crossCount = Math.min(8, Math.floor(ideaIds.length * 0.15));
   for (let i = 0; i < crossCount; i++) {

@@ -21,14 +21,7 @@ const VIEW_TABS: { key: ViewTab; label: string; desc: string }[] = [
   { key: 'visual',     label: 'Visual',     desc: 'Image-inspired nodes' },
 ];
 
-// Agent → method 매핑 (에이전트가 사용하는 method 기반 역추적)
-const AGENT_METHODS: Record<string, string[]> = {
-  'Researcher':        ['scene_graph_extract'],
-  'Divergent Thinker': ['divergent', 'visual_inspiration'],
-  'Evaluator':         [], // 평가만 수행, 노드 생성 안 함
-  'Iterator':          ['iteration:semantic', 'rearrange', 'eliminate', 'put_to_other_use', 'modify', 'adapt', 'combine', 'substitute'],
-  'Pipeline (Light)':  ['divergent', 'iteration:semantic', 'rearrange', 'eliminate', 'put_to_other_use', 'modify', 'adapt', 'combine', 'substitute'],
-};
+// Agent 뷰 — GENERATED_BY 엣지 기반 필터링 (Agent 노드 자동 감지)
 
 /** link의 source/target에서 ID 추출 (문자열 또는 객체) */
 function linkId(val: string | { id: string }): string {
@@ -110,11 +103,19 @@ export default function GraphPage() {
       nodes = nodes.filter((n) => reachable.has(n.id));
     }
     if (viewTab === 'agent' && filterAgent) {
-      const methods = AGENT_METHODS[filterAgent] ?? [];
-      // Evaluator 등 method가 없는 에이전트: 해당 에이전트는 노드 생성 안 함 → 빈 결과
-      nodes = methods.length > 0
-        ? nodes.filter((n) => n.method && methods.includes(n.method))
-        : [];
+      // GENERATED_BY 엣지 기반: agent 노드 → 생성한 노드 ID 추출
+      const agentNodeId = rawData.nodes.find((n) => n.type === 'Agent' && n.name === filterAgent)?.id;
+      if (agentNodeId) {
+        const generatedIds = new Set(
+          rawData.links
+            .filter((l) => linkId(l.source as any) === agentNodeId && l.type === 'GENERATED_BY')
+            .map((l) => linkId(l.target as any))
+        );
+        generatedIds.add(agentNodeId); // 에이전트 노드 자체도 포함
+        nodes = nodes.filter((n) => generatedIds.has(n.id));
+      } else {
+        nodes = [];
+      }
     }
 
     // 타입 필터 (모든 뷰에서 작동)
@@ -135,6 +136,10 @@ export default function GraphPage() {
   const availableDomains = useMemo(() => {
     const domains = rawData.nodes.filter((n) => n.type === 'Domain').map((n) => n.name);
     return [...new Set(domains)];
+  }, [rawData]);
+
+  const availableAgents = useMemo(() => {
+    return rawData.nodes.filter((n) => n.type === 'Agent').map((n) => n.name);
   }, [rawData]);
 
   const availableTypes = useMemo(() => {
@@ -238,7 +243,7 @@ export default function GraphPage() {
           </div>
         )}
 
-        {viewTab === 'agent' && (
+        {viewTab === 'agent' && availableAgents.length > 0 && (
           <div className="glass rounded-xl px-3 py-3">
             <div className="text-white/30 text-[9px] font-mono mb-2 tracking-wider">AGENT</div>
             <div className="space-y-1">
@@ -250,7 +255,7 @@ export default function GraphPage() {
               >
                 All agents
               </button>
-              {Object.keys(AGENT_METHODS).map((agent) => (
+              {availableAgents.map((agent) => (
                 <button
                   key={agent}
                   onClick={() => setFilterAgent(agent)}
