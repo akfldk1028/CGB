@@ -16,6 +16,12 @@ tools:
   - graph-add-node
   - graph-add-edge
   - analyze-image
+  - multi-model-debate
+skills:
+  - brainstorm
+  - scamper
+  - triz
+  - image-analysis
 runtime:
   max_turns: 12
   timeout: 180

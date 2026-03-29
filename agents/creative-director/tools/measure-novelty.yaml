@@ -1,0 +1,35 @@
+name: measure-novelty
+description: Calculate the knowledge distance (novelty score) of a node relative to existing graph content
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    nodeId:
+      type: string
+      description: ID of the node to measure novelty for
+  required: [nodeId]
+output_schema:
+  type: object
+  properties:
+    nodeId:
+      type: string
+      description: The node that was measured
+    noveltyScore:
+      type: number
+      description: Novelty score from 0 (completely redundant) to 100 (entirely novel)
+    nearestNeighbors:
+      type: array
+      description: Most similar existing nodes used to compute the score
+      items:
+        type: object
+        properties:
+          nodeId:
+            type: string
+          title:
+            type: string
+          distance:
+            type: number
+            description: Semantic distance (0 = identical, 1 = unrelated)
+    explanation:
+      type: string
+      description: Brief explanation of what makes this node novel or redundant

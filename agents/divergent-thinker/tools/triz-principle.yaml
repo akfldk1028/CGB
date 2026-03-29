@@ -1,0 +1,40 @@
+name: triz-principle
+description: Apply TRIZ inventive principles to resolve a technical or conceptual contradiction
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    contradiction:
+      type: string
+      description: Description of the contradiction or conflict to resolve
+    improving_parameter:
+      type: string
+      description: The parameter or quality you want to improve
+    worsening_parameter:
+      type: string
+      description: The parameter or quality that worsens when improving the other
+  required: [contradiction, improving_parameter, worsening_parameter]
+output_schema:
+  type: object
+  properties:
+    principles:
+      type: array
+      description: Recommended TRIZ inventive principles for this contradiction
+      items:
+        type: object
+        properties:
+          number:
+            type: number
+            description: TRIZ principle number (1-40)
+          name:
+            type: string
+            description: Name of the inventive principle
+          description:
+            type: string
+            description: Explanation of the principle
+          application:
+            type: string
+            description: How this principle applies to the stated contradiction
+    contradiction_matrix_cell:
+      type: string
+      description: The improving vs worsening parameter pair used for lookup

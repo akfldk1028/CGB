@@ -1,0 +1,48 @@
+name: analyze-image
+description: Analyze an image using a Vision-Language Model and automatically create Concept and Idea nodes in the knowledge graph
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    imageUrl:
+      type: string
+      description: URL of the image to analyze
+    context:
+      type: string
+      description: Optional context to guide the analysis (e.g. domain, what to focus on)
+  required: [imageUrl]
+output_schema:
+  type: object
+  properties:
+    analysis:
+      type: string
+      description: VLM-generated description and interpretation of the image
+    concepts:
+      type: array
+      description: Concept nodes created from the image analysis
+      items:
+        type: object
+        properties:
+          nodeId:
+            type: string
+          title:
+            type: string
+          description:
+            type: string
+    ideas:
+      type: array
+      description: Idea nodes inspired by the image
+      items:
+        type: object
+        properties:
+          nodeId:
+            type: string
+          title:
+            type: string
+          description:
+            type: string
+    tags:
+      type: array
+      description: Keywords extracted from the image
+      items:
+        type: string

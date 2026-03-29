@@ -15,6 +15,10 @@ tools:
   - graph-add-edge
   - web-search
   - measure-novelty
+skills:
+  - scamper
+  - triz
+  - graph-search
 runtime:
   max_turns: 10
   timeout: 150

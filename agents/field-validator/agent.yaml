@@ -13,6 +13,9 @@ tools:
   - graph-search
   - evaluate-idea
   - measure-novelty
+skills:
+  - evaluate
+  - graph-search
 runtime:
   max_turns: 8
   timeout: 120

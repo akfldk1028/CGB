@@ -1,0 +1,41 @@
+name: scamper-transform
+description: Apply a SCAMPER creative thinking technique to transform an existing idea into new variants
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    idea:
+      type: string
+      description: The original idea or concept to transform
+    technique:
+      type: string
+      description: Which SCAMPER technique to apply
+      enum:
+        - substitute
+        - combine
+        - adapt
+        - modify
+        - put_to_other_use
+        - eliminate
+        - rearrange
+  required: [idea, technique]
+output_schema:
+  type: object
+  properties:
+    original:
+      type: string
+      description: The original idea that was transformed
+    technique:
+      type: string
+      description: The SCAMPER technique that was applied
+    result:
+      type: string
+      description: The transformed idea after applying the technique
+    explanation:
+      type: string
+      description: How the technique was applied and what changed
+    suggestions:
+      type: array
+      description: Additional variant ideas from the same transformation
+      items:
+        type: string

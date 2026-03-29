@@ -1,0 +1,37 @@
+name: graph-search
+description: Search the knowledge graph by keywords, returning matching nodes ranked by relevance
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    keywords:
+      type: string
+      description: Space-separated search keywords to match against node titles and descriptions
+    max_results:
+      type: number
+      description: Maximum number of results to return
+      default: 10
+  required: [keywords]
+output_schema:
+  type: object
+  properties:
+    results:
+      type: array
+      description: Matching nodes ordered by relevance score
+      items:
+        type: object
+        properties:
+          nodeId:
+            type: string
+          type:
+            type: string
+          title:
+            type: string
+          description:
+            type: string
+          score:
+            type: number
+            description: Relevance score between 0 and 1
+    total:
+      type: number
+      description: Total number of matches found

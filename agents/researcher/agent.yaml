@@ -14,6 +14,9 @@ tools:
   - graph-query
   - graph-add-node
   - analyze-image
+skills:
+  - graph-search
+  - image-analysis
 runtime:
   max_turns: 8
   timeout: 120

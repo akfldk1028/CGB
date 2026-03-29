@@ -1,0 +1,41 @@
+name: brainstorm
+description: Generate creative ideas on a given topic using divergent thinking techniques
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    topic:
+      type: string
+      description: The topic or problem statement to brainstorm ideas for
+    count:
+      type: number
+      description: Number of ideas to generate
+      default: 5
+    domain:
+      type: string
+      description: Optional domain context to guide idea generation (e.g. technology, education, healthcare)
+  required: [topic]
+output_schema:
+  type: object
+  properties:
+    ideas:
+      type: array
+      description: Generated ideas with metadata
+      items:
+        type: object
+        properties:
+          title:
+            type: string
+            description: Short title for the idea
+          description:
+            type: string
+            description: Detailed explanation of the idea
+          method:
+            type: string
+            description: Technique used to generate this idea
+    topic:
+      type: string
+      description: The original topic
+    count:
+      type: number
+      description: Number of ideas returned

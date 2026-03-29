@@ -1,0 +1,25 @@
+name: extract-keywords
+description: Extract the most relevant search keywords from a block of text
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    text:
+      type: string
+      description: Input text to extract keywords from
+    max_keywords:
+      type: number
+      description: Maximum number of keywords to return
+      default: 3
+  required: [text]
+output_schema:
+  type: object
+  properties:
+    keywords:
+      type: array
+      description: Extracted keywords ordered by relevance
+      items:
+        type: string
+    source_length:
+      type: number
+      description: Character count of the input text

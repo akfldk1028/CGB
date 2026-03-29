@@ -1,0 +1,38 @@
+name: web-search
+description: Search the web for information relevant to a query
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Search query string
+    max_results:
+      type: number
+      description: Maximum number of search results to return
+      default: 5
+  required: [query]
+output_schema:
+  type: object
+  properties:
+    results:
+      type: array
+      description: Search results ordered by relevance
+      items:
+        type: object
+        properties:
+          title:
+            type: string
+            description: Page title
+          url:
+            type: string
+            description: URL of the result
+          snippet:
+            type: string
+            description: Text excerpt from the page
+    query:
+      type: string
+      description: The original search query
+    total:
+      type: number
+      description: Total number of results found

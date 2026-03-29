@@ -1,0 +1,47 @@
+name: evaluate-idea
+description: Score an idea on 6 creativity dimensions based on Amabile's componential model and Agent Ideate framework
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    title:
+      type: string
+      description: Title of the idea to evaluate
+    description:
+      type: string
+      description: Detailed description of the idea
+    domain:
+      type: string
+      description: Domain context for evaluation (e.g. technology, art, business)
+  required: [title, description, domain]
+output_schema:
+  type: object
+  properties:
+    scores:
+      type: object
+      description: Scores on each dimension, 0-100 scale
+      properties:
+        novelty:
+          type: number
+          description: How original and unprecedented the idea is
+        usefulness:
+          type: number
+          description: Practical value and applicability
+        feasibility:
+          type: number
+          description: How realistically implementable the idea is
+        elaboration:
+          type: number
+          description: Level of detail and development
+        relevance:
+          type: number
+          description: Alignment with the stated domain and goals
+        surprise:
+          type: number
+          description: Degree of unexpected or non-obvious insight
+    overall:
+      type: number
+      description: Weighted overall creativity score (0-100)
+    summary:
+      type: string
+      description: Brief qualitative assessment of the idea

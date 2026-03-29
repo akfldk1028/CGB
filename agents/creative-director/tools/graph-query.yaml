@@ -1,0 +1,26 @@
+name: graph-query
+description: Run a read-only Cypher query against the knowledge graph. Write operations (CREATE, MERGE, SET, DELETE, REMOVE, DROP) are blocked.
+version: 1.0.0
+input_schema:
+  type: object
+  properties:
+    cypher:
+      type: string
+      description: Read-only Cypher query string. Write operations will be rejected.
+  required: [cypher]
+output_schema:
+  type: object
+  properties:
+    columns:
+      type: array
+      description: Column names in the result set
+      items:
+        type: string
+    rows:
+      type: array
+      description: Result rows, each row is an array of values matching columns
+      items:
+        type: array
+    count:
+      type: number
+      description: Number of rows returned
