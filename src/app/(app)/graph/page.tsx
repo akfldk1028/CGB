@@ -60,8 +60,10 @@ export default function GraphPage() {
       setSelected(null);
     }
     try {
-      const scope = viewTab === 'my' ? 'my' : 'collective';
-      const params = new URLSearchParams({ mode, maxNodes: '500', scope });
+      const view = viewTab === 'my' ? 'user' : viewTab;
+      const params = new URLSearchParams({ mode, maxNodes: '500', view });
+      if (viewTab === 'domain' && filterDomain) params.set('domainId', filterDomain);
+      if (viewTab === 'agent' && filterAgent) params.set('agentId', filterAgent);
       const res = await fetch(`/api/v1/graph/visualize?${params}`);
       const json = await res.json();
       if (json.success) {
@@ -79,7 +81,7 @@ export default function GraphPage() {
       }
     } catch { /* polling error ignored */ }
     finally { if (!isPolling) setLoading(false); }
-  }, [viewTab]);
+  }, [viewTab, filterDomain, filterAgent]);
 
   // ── 클라이언트 필터링 ──
   const filteredData = useMemo((): Graph3DData => {
@@ -150,7 +152,7 @@ export default function GraphPage() {
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
-  }, [dataMode, viewTab, loadGraph]);
+  }, [dataMode, viewTab, filterDomain, filterAgent, loadGraph]);
 
   useEffect(() => {
     if (dataMode !== 'live') return;

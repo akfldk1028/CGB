@@ -3,6 +3,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { ok, fail } from '@/lib/api-response';
 import { generateMockGraph, SEED_ITERATION_CHAIN } from '@/lib/mock-graph';
 import { getVisualizationData, getStats } from '@/modules/graph/service';
+import type { BrainView } from '@/modules/graph/queries/brain-views';
 
 export async function GET(request: Request) {
   const auth = await authenticateRequest(request);
@@ -14,7 +15,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('mode') ?? 'live';
   const maxNodes = parseInt(searchParams.get('maxNodes') ?? '100', 10);
-  const scope = (searchParams.get('scope') ?? 'collective') as 'my' | 'collective';
+  const view = (searchParams.get('view') ?? 'collective') as BrainView;
+  const domainId = searchParams.get('domainId') ?? undefined;
+  const agentId = searchParams.get('agentId') ?? undefined;
 
   if (mode === 'seed') return ok(SEED_ITERATION_CHAIN, { tier: auth.tier });
 
@@ -28,7 +31,7 @@ export async function GET(request: Request) {
     return ok({ ...data, _meta: { source: 'mock_fallback', reason: 'graph empty', stats } }, { tier: auth.tier });
   }
 
-  const filterUserId = scope === 'my' ? auth.userId : undefined;
-  const data = await getVisualizationData(maxNodes, filterUserId);
-  return ok({ ...data, _meta: { source: stats.mode, scope, stats } }, { tier: auth.tier });
+  const userId = view === 'user' ? auth.userId : undefined;
+  const data = await getVisualizationData(maxNodes, userId, view, { domainId, agentId });
+  return ok({ ...data, _meta: { source: stats.mode, view, stats } }, { tier: auth.tier });
 }
