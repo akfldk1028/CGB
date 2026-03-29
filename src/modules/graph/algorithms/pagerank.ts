@@ -62,11 +62,20 @@ export function runPageRank(options: PageRankOptions = {}): PageRankResult[] {
     scores.set(id, initScore);
   }
 
-  // Power iteration
+  // Power iteration (with dangling node handling)
   for (let iter = 0; iter < iterations; iter++) {
+    // Dangling rank: sum of scores of nodes with no outgoing edges
+    let danglingRank = 0;
+    for (const id of nodeIds) {
+      if (!outgoing.has(id) || outgoing.get(id)!.length === 0) {
+        danglingRank += scores.get(id) ?? 0;
+      }
+    }
+
     const next = new Map<string, number>();
     for (const id of nodeIds) {
-      next.set(id, (1 - damping) / N);
+      // Base: teleportation + dangling redistribution
+      next.set(id, ((1 - damping) + damping * danglingRank) / N);
     }
 
     for (const [sourceId, targets] of outgoing) {
