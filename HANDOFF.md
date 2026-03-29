@@ -6,7 +6,7 @@
 
 ---
 
-## Current Progress (2026-03-28~29, 2 sessions)
+## Current Progress (2026-03-28~29, 3 sessions)
 
 ### Session 1 (03-28): 인프라 구축
 - Agent 1등 시민 (ensureAgentNode + GENERATED_BY)
@@ -20,6 +20,13 @@
 ### Session 2 (03-29): CCG 분석
 - create-context-graph 전체 분석 완료 (`memory/research/ccg-comparison.md`)
 - 빼올 패턴 5개 식별, CGB 우위 7개 확인
+
+### Session 3 (03-29): P0 + P1-1 구현
+- **P0-1 Reasoning Trace**: DecisionTrace + TraceStep 노드, queries/traces.ts, agent-runner에 자동 저장
+- **P0-2 SSE 스트리밍**: SessionEmitter 콜백, /api/creative/session/stream, useSessionStream 훅
+- **P1-1 YAML 온톨로지**: _base.yaml + creativity.yaml, ontology-loader.ts (Zod 검증 + base 머지)
+- 코드 리뷰: 중복 reduce 수정, 미사용 타입 제거
+- **22→23 commits, GitHub 동기화**
 
 ---
 
@@ -36,11 +43,11 @@
 
 ---
 
-## CCG에서 빼올 패턴 (다음 세션 TODO)
+## CCG에서 빼올 패턴 (진행 상황)
 
-### P0 — 즉시 (가장 임팩트 큼)
+### P0 — ✅ 완료
 
-#### 1. Reasoning Trace (DecisionTrace → TraceStep)
+#### 1. ✅ Reasoning Trace (DecisionTrace → TraceStep)
 ```
 현재: 에이전트 실행 → steps[] 배열로만 기록, 세션 끝나면 사라짐
 목표: DecisionTrace 노드 + HAS_STEP 엣지로 그래프에 영구 저장
@@ -50,7 +57,7 @@
 - Agent runner에서 각 step을 TraceStep 노드로 저장
 - Session → HAS_TRACE → DecisionTrace → HAS_STEP → TraceStep
 
-#### 2. SSE 실시간 스트리밍 (CypherResultCollector 패턴)
+#### 2. ✅ SSE 실시간 스트리밍 (CypherResultCollector 패턴)
 ```
 현재: 세션 POST → 5분 기다림 → 결과 한번에 반환
 목표: 에이전트 실행 중 tool_start/tool_end/graph_change 이벤트를 SSE로 프론트에 실시간 전송
@@ -61,7 +68,7 @@
 
 ### P1 — 중기
 
-#### 3. YAML 온톨로지 전환
+#### 3. ✅ YAML 온톨로지 전환
 ```
 현재: schema.ts에 TypeScript 하드코딩 (7 nodes, 22 edges)
 목표: creativity.yaml + _base.yaml 상속 구조
