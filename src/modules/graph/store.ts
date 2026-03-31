@@ -1,10 +1,9 @@
-/** GraphStore — 유저별 격리 가능한 그래프 저장소 인터페이스
+/** GraphStore — Graph v2 저장소 인터페이스
  *
- * 현재: InMemoryGraphStore (개발/데모)
- * 미래: MemgraphGraphStore, NeonGraphStore 등으로 교체/추가
+ * 기본: SupabaseGraphStore (pgvector + tsvector + RRF 3중검색)
+ * Fallback: InMemoryGraphStore (SUPABASE_URL 없을 때)
  *
- * 모든 graph 연산은 이 인터페이스를 통해 수행.
- * service.ts, graph-tools.ts 모두 GraphStore를 통해 접근.
+ * 모든 graph 연산은 storeManager.getGlobalStore()를 통해 수행.
  */
 
 import type { GraphNode, GraphEdge } from '@/types/graph';
@@ -24,6 +23,13 @@ export interface StoreNode {
   userId?: string;
   imageUrl?: string;
   createdAt: string;
+  // Graph v2 fields
+  agentId?: string;
+  domain?: string;
+  layer?: number;           // 0=global, 1=domain, 2=agent
+  embedding?: number[];     // 768-dim vector
+  metadata?: Record<string, unknown>;
+  expiredAt?: string;
 }
 
 export interface StoreEdge {
@@ -32,16 +38,29 @@ export interface StoreEdge {
   target: string;
   type: string;
   createdAt: string;
+  // Graph v2 fields
+  weight?: number;
+  metadata?: Record<string, unknown>;
+  expiredAt?: string;
+  validFrom?: string;
+  validUntil?: string;
 }
 
 export interface ListOptions {
   type?: string;
   userId?: string;
+  agentId?: string;
+  domain?: string;
+  layer?: number;
   limit?: number;
 }
 
 export interface SearchOptions {
   limit?: number;
+  agentId?: string;
+  domain?: string;
+  layer?: number;
+  type?: string;
 }
 
 export interface StoreStats {
@@ -61,7 +80,7 @@ export interface GraphStore {
   addEdge(edge: StoreEdge): Promise<StoreEdge>;
   listEdges(options?: ListOptions): Promise<StoreEdge[]>;
 
-  // Search
+  // Search — v2: 3중 검색 (cosine + BM25 + BFS → RRF)
   search(query: string, options?: SearchOptions): Promise<StoreNode[]>;
 
   // Stats
@@ -74,6 +93,10 @@ export interface GraphStore {
   // Persistence
   merge(nodes: StoreNode[], edges: StoreEdge[]): void;
   clear(): void;
+
+  // Graph v2: expire (삭제 대신 무효화)
+  expireNode?(id: string): Promise<void>;
+  expireEdge?(id: string): Promise<void>;
 }
 
 // ═══════════════════════════════════════════
@@ -186,12 +209,81 @@ export class InMemoryGraphStore implements GraphStore {
 /** 글로벌 스토어 키 (전체 뇌) */
 const GLOBAL_KEY = '__collective__';
 
+/** Supabase 환경변수 존재 여부로 백엔드 결정 */
+const USE_SUPABASE = !!(
+  (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+);
+
+/** SupabaseGraphStore lazy import (circular 방지) */
+let _supabaseStorePromise: Promise<GraphStore> | null = null;
+async function getSupabaseStore(): Promise<GraphStore> {
+  if (!_supabaseStorePromise) {
+    _supabaseStorePromise = import('./supabase-store').then(async (mod) => {
+      const store = new mod.SupabaseGraphStore();
+      await store.loadCache();
+      return store;
+    });
+  }
+  return _supabaseStorePromise;
+}
+
 class GraphStoreManager {
   private stores = new Map<string, GraphStore>();
+  private _globalStore: GraphStore | null = null;
+  private _initPromise: Promise<void> | null = null;
 
-  /** 글로벌 스토어 (Collective Brain) */
+  /** 초기화 — 앱 시작 시 1회 */
+  async init(): Promise<void> {
+    if (this._initPromise) return this._initPromise;
+    this._initPromise = (async () => {
+      if (USE_SUPABASE) {
+        try {
+          this._globalStore = await getSupabaseStore();
+          console.log('[GraphStoreManager] using SupabaseGraphStore');
+        } catch (err) {
+          console.error('[GraphStoreManager] Supabase init failed, falling back to InMemory:', err);
+          this._globalStore = new InMemoryGraphStore();
+        }
+      } else {
+        this._globalStore = new InMemoryGraphStore();
+        console.log('[GraphStoreManager] using InMemoryGraphStore (no SUPABASE_URL)');
+      }
+    })();
+    return this._initPromise;
+  }
+
+  /** 글로벌 스토어 (Collective Brain)
+   *  첫 호출 시 init 시작, 완료 전에는 InMemory 사용.
+   *  Supabase init 성공 시 교체 (InMemory에 쌓인 데이터는 merge).
+   */
   getGlobalStore(): GraphStore {
-    return this.getStore(GLOBAL_KEY);
+    if (this._globalStore) return this._globalStore;
+    // 아직 초기화 안 됨 → InMemory 즉시 할당 + 백그라운드 Supabase 시도
+    this._globalStore = new InMemoryGraphStore();
+    if (USE_SUPABASE) {
+      this.upgradeToSupabase().catch(console.error);
+    }
+    return this._globalStore;
+  }
+
+  /** InMemory → Supabase 업그레이드 (백그라운드) */
+  private async upgradeToSupabase(): Promise<void> {
+    try {
+      const supaStore = await getSupabaseStore();
+      // InMemory에 쌓인 데이터가 있으면 Supabase로 옮기기
+      if (this._globalStore) {
+        const pendingNodes = this._globalStore.getAllNodes();
+        const pendingEdges = this._globalStore.getAllEdges();
+        if (pendingNodes.length > 0 || pendingEdges.length > 0) {
+          supaStore.merge(pendingNodes, pendingEdges);
+        }
+      }
+      this._globalStore = supaStore;
+      console.log('[GraphStoreManager] upgraded to SupabaseGraphStore');
+    } catch (err) {
+      console.error('[GraphStoreManager] Supabase upgrade failed, keeping InMemory:', err);
+    }
   }
 
   /** 유저별 스토어 (My Brain) — 미래 확장용 */
@@ -201,6 +293,7 @@ class GraphStoreManager {
 
   /** 키 기반 스토어 조회/생성 */
   getStore(key: string): GraphStore {
+    if (key === GLOBAL_KEY) return this.getGlobalStore();
     let store = this.stores.get(key);
     if (!store) {
       store = new InMemoryGraphStore();
@@ -217,6 +310,14 @@ class GraphStoreManager {
   /** 스토어 교체 (Memgraph, Neon 등 외부 백엔드 주입) */
   setStore(key: string, store: GraphStore): void {
     this.stores.set(key, store);
+    if (key === GLOBAL_KEY) this._globalStore = store;
+  }
+
+  /** 현재 백엔드 모드 */
+  getMode(): 'supabase' | 'in_memory' {
+    return USE_SUPABASE && this._globalStore?.constructor.name === 'SupabaseGraphStore'
+      ? 'supabase'
+      : 'in_memory';
   }
 }
 

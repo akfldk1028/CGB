@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getStats } from '@/modules/graph/service';
 import { ensureConnection } from '@/modules/graph/driver';
+import { storeManager } from '@/modules/graph/store';
 import type { ApiResponse } from '@/types/api';
 
 const USE_MEMGRAPH = !!(process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD);
@@ -9,9 +10,12 @@ const USE_MEMGRAPH = !!(process.env.NEO4J_URI && process.env.NEO4J_USER && proce
 export async function GET() {
   try {
     const stats = await getStats();
+    const mode = storeManager.getMode();
 
-    let connection: { connected: boolean; error?: string } = { connected: false, error: 'Not configured' };
-    if (USE_MEMGRAPH) {
+    let connection: { connected: boolean; mode?: string; error?: string } = { connected: false, error: 'Not configured' };
+    if (mode === 'supabase') {
+      connection = { connected: true, mode: 'supabase' };
+    } else if (USE_MEMGRAPH) {
       connection = await ensureConnection();
     }
 
@@ -19,8 +23,13 @@ export async function GET() {
       success: true,
       data: {
         ...stats,
-        connection: USE_MEMGRAPH ? connection : { connected: false, mode: 'in_memory' },
+        connection: mode === 'supabase'
+          ? connection
+          : USE_MEMGRAPH
+            ? connection
+            : { connected: false, mode: 'in_memory' },
         config: {
+          storeMode: mode,
           memgraphConfigured: USE_MEMGRAPH,
           uri: USE_MEMGRAPH ? process.env.NEO4J_URI?.replace(/\/\/.*@/, '//***@') : null,
         },

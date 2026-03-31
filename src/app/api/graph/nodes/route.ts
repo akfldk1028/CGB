@@ -8,6 +8,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') ?? undefined;
     const id = searchParams.get('id');
+    const agentId = searchParams.get('agent_id') ?? undefined;
+    const domain = searchParams.get('domain') ?? undefined;
+    const layer = searchParams.has('layer') ? parseInt(searchParams.get('layer')!, 10) : undefined;
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 1), 500);
 
     // 특정 노드 조회
@@ -22,7 +25,7 @@ export async function GET(request: Request) {
       return NextResponse.json<ApiResponse>({ success: true, data: node });
     }
 
-    const nodes = await listNodes({ type, limit });
+    const nodes = await listNodes({ type, agentId, domain, layer, limit });
     const stats = await getStats();
 
     return NextResponse.json<ApiResponse>({

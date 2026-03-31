@@ -9,6 +9,9 @@ export async function GET(request: Request) {
     const q = searchParams.get('q') ?? '';
     const type = searchParams.get('type') ?? undefined;
     const nodeId = searchParams.get('nodeId');
+    const agentId = searchParams.get('agent_id') ?? undefined;
+    const domain = searchParams.get('domain') ?? undefined;
+    const layer = searchParams.has('layer') ? parseInt(searchParams.get('layer')!, 10) : undefined;
     const hops = Math.min(Math.max(parseInt(searchParams.get('hops') ?? '2', 10) || 2, 1), 5);
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10) || 20, 1), 200);
 
@@ -26,7 +29,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const results = await searchGraph(q, { type, limit });
+    const results = await searchGraph(q, { type, agentId, domain, layer, limit });
 
     return NextResponse.json<ApiResponse>({
       success: true,

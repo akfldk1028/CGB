@@ -13,6 +13,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q') ?? '';
   const type = searchParams.get('type') ?? undefined;
+  const agentId = searchParams.get('agent_id') ?? undefined;
+  const domain = searchParams.get('domain') ?? undefined;
+  const layer = searchParams.has('layer') ? parseInt(searchParams.get('layer')!, 10) : undefined;
   const nodeId = searchParams.get('nodeId');
   const hops = parseInt(searchParams.get('hops') ?? '2', 10);
   const limit = parseInt(searchParams.get('limit') ?? '20', 10);
@@ -24,6 +27,6 @@ export async function GET(request: Request) {
 
   if (!q) return fail('VALIDATION', 'q (query) or nodeId parameter required');
 
-  const results = await searchGraph(q, { type, limit });
+  const results = await searchGraph(q, { type, agentId, domain, layer, limit });
   return ok({ query: q, results, total: results.length }, { tier: auth.tier });
 }
