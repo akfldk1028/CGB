@@ -135,12 +135,34 @@ Graph (single store, 5 brain views):
 Frontend (/graph): 3D ForceGraph + 5탭 + mock/seed/live
 ```
 
+## Session 4 (03-31): MOL 연동 + Graph v2 설계
+
+### MOL 연동 완료 (MOL 쪽)
+- BrainClient.js — CGB REST API 래퍼 (addToGraph, searchGraph, brainstorm, evaluate)
+- BrainEvolution.js — brain_config (archetype × Big Five), HR 진화, 경험치
+- 366명 brain_config 초기화, /brain/status API
+- AgentLifecycle + TaskWorker에서 BrainClient 호출 (non-blocking)
+- CGB 마스터키 설정 + Vercel 재배포 (team tier)
+
+### CGB 쪽 미완료 → Graph v2로 해결
+- ❌ API가 agent_id/layer/domain 파라미터 안 받음
+- ❌ InMemory → Supabase pgvector 전환 필요
+- ❌ 검색 3중화 필요 (cosine + BM25 + BFS)
+- ❌ SIMILAR_TO 임베딩 기반 변경 필요
+- ❌ Agent 최상위 노드 + Temporal Edge
+
+### Graph v2 설계 문서
+→ `docs/memory/graph-v2-migration.md` (전체 설계 + SQL 스키마 + 구현 순서)
+→ `docs/memory/mol-integration-status.md` (MOL 연동 현황)
+
+---
+
 ## Known Issues
 - `workflow-engine.ts` — YAML DAG 존재하나 API 미연결
 - Dead code: `clawteam-client.ts`, `roles/*.ts`, `orchestrator.ts`
-- Tests: 0 (vitest 미설정)
-- Vercel: 미배포
-- userId: 미구현
+- Vercel: 배포됨 (cgb-brain-lemon.vercel.app, team tier)
+- **Graph: InMemory + /tmp → 프로덕션 불안정, v2(pgvector)로 전환 필요**
+- **MOL 연동: 파이프 연결됨 but CGB 쪽 파라미터 미지원**
 
 ## Env Vars
 ```
