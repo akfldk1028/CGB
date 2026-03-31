@@ -39,7 +39,9 @@ function storeNodeToGraphNode(n: StoreNode): GraphNode {
 
 export async function addNode(
   type: 'Idea' | 'Concept' | 'Session',
-  params: CreateIdeaParams | CreateConceptParams | CreateSessionParams
+  params: CreateIdeaParams | CreateConceptParams | CreateSessionParams & {
+    agent_id?: string; domain?: string; layer?: number;
+  }
 ): Promise<GraphNode> {
   let node: GraphNode;
 
@@ -57,6 +59,8 @@ export async function addNode(
       throw new Error(`Unknown node type: ${type}`);
   }
 
+  // v2: BrainClient에서 전달하는 agent_id, domain, layer 반영
+  const p = params as unknown as Record<string, unknown>;
   await getStore().addNode({
     id: node.id,
     type: node.type,
@@ -65,6 +69,9 @@ export async function addNode(
     method: node.method,
     tags: (node.metadata?.tags as string[]) ?? [],
     createdAt: node.createdAt,
+    agentId: (p.agent_id as string) ?? undefined,
+    domain: (p.domain as string) ?? undefined,
+    layer: (p.layer as number) ?? 2,
   });
 
   return node;
