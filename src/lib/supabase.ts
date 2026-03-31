@@ -4,10 +4,8 @@
  * PostgREST API + RPC (graph_hybrid_search, graph_bfs_neighbors) 호출.
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
-
-if (!SUPABASE_URL) console.warn('[supabase] SUPABASE_URL not set');
+function getUrl() { return process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''; }
+function getKey() { return process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''; }
 
 /** PostgREST query helper */
 export async function supabaseRest<T = unknown>(
@@ -21,6 +19,8 @@ export async function supabaseRest<T = unknown>(
   } = {},
 ): Promise<T> {
   const { method = 'GET', query = '', body, headers = {}, single = false } = options;
+  const SUPABASE_URL = getUrl();
+  const SUPABASE_KEY = getKey();
   const url = `${SUPABASE_URL}/rest/v1/${table}${query ? `?${query}` : ''}`;
 
   const res = await fetch(url, {
@@ -51,6 +51,8 @@ export async function supabaseRpc<T = unknown>(
   fn: string,
   params: Record<string, unknown> = {},
 ): Promise<T> {
+  const SUPABASE_URL = getUrl();
+  const SUPABASE_KEY = getKey();
   const url = `${SUPABASE_URL}/rest/v1/rpc/${fn}`;
 
   const res = await fetch(url, {

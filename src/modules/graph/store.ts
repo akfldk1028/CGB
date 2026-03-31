@@ -209,11 +209,13 @@ export class InMemoryGraphStore implements GraphStore {
 /** 글로벌 스토어 키 (전체 뇌) */
 const GLOBAL_KEY = '__collective__';
 
-/** Supabase 환경변수 존재 여부로 백엔드 결정 */
-const USE_SUPABASE = !!(
-  (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-  (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-);
+/** Supabase 환경변수 존재 여부로 백엔드 결정 (런타임 평가 — Vercel serverless 대응) */
+function useSupabase(): boolean {
+  return !!(
+    (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  );
+}
 
 /** SupabaseGraphStore lazy import (circular 방지) */
 let _supabaseStorePromise: Promise<GraphStore> | null = null;
@@ -237,7 +239,7 @@ class GraphStoreManager {
   async init(): Promise<void> {
     if (this._initPromise) return this._initPromise;
     this._initPromise = (async () => {
-      if (USE_SUPABASE) {
+      if (useSupabase()) {
         try {
           this._globalStore = await getSupabaseStore();
           console.log('[GraphStoreManager] using SupabaseGraphStore');
@@ -261,7 +263,7 @@ class GraphStoreManager {
     if (this._globalStore) return this._globalStore;
     // 아직 초기화 안 됨 → InMemory 즉시 할당 + 백그라운드 Supabase 시도
     this._globalStore = new InMemoryGraphStore();
-    if (USE_SUPABASE) {
+    if (useSupabase()) {
       this.upgradeToSupabase().catch(console.error);
     }
     return this._globalStore;
@@ -315,7 +317,7 @@ class GraphStoreManager {
 
   /** 현재 백엔드 모드 */
   getMode(): 'supabase' | 'in_memory' {
-    return USE_SUPABASE && this._globalStore?.constructor.name === 'SupabaseGraphStore'
+    return useSupabase() && this._globalStore?.constructor.name === 'SupabaseGraphStore'
       ? 'supabase'
       : 'in_memory';
   }
