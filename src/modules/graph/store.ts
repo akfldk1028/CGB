@@ -265,7 +265,7 @@ class GraphStoreManager {
 
   /** Vercel serverless 대응: 첫 요청에서 await 필수 */
   async ensureReady(): Promise<GraphStore> {
-    if (this._globalStore?.constructor.name === 'SupabaseGraphStore') {
+    if (this._isSupabase && this._globalStore) {
       return this._globalStore;
     }
     if (!useSupabase()) {
