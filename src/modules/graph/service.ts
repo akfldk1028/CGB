@@ -15,8 +15,8 @@ import { toGraph3D } from './transform';
 import { queryBrainView, listDomains, listAgents, type BrainView, type BrainViewOptions } from './queries/brain-views';
 import { ensureAgentNode, linkAgentToNodes, listAgentNodes, getAgentStats } from './queries/agents';
 
-function getStore() {
-  return storeManager.getGlobalStore();
+async function getStore() {
+  return storeManager.ensureReady();
 }
 
 function storeNodeToGraphNode(n: StoreNode): GraphNode {
@@ -61,7 +61,7 @@ export async function addNode(
 
   // v2: BrainClient에서 전달하는 agent_id, domain, layer 반영
   const p = params as unknown as Record<string, unknown>;
-  await getStore().addNode({
+  await (await getStore()).addNode({
     id: node.id,
     type: node.type,
     title: node.title,
@@ -78,7 +78,7 @@ export async function addNode(
 }
 
 export async function getNode(id: string): Promise<GraphNode | null> {
-  const found = await getStore().getNode(id);
+  const found = await (await getStore()).getNode(id);
   if (!found) return null;
   return storeNodeToGraphNode(found);
 }
@@ -90,7 +90,7 @@ export async function listNodes(options?: {
   layer?: number;
   limit?: number;
 }): Promise<GraphNode[]> {
-  const results = await getStore().listNodes({
+  const results = await (await getStore()).listNodes({
     type: options?.type,
     agentId: options?.agentId,
     domain: options?.domain,
@@ -107,7 +107,7 @@ export async function listNodes(options?: {
 export async function addEdge(params: CreateEdgeParams): Promise<GraphEdge> {
   const edge = createEdge(params);
 
-  await getStore().addEdge({
+  await (await getStore()).addEdge({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -123,7 +123,7 @@ export async function listEdges(options?: {
   type?: string;
   limit?: number;
 }): Promise<GraphEdge[]> {
-  const store = getStore();
+  const store = await getStore();
   const results = await store.listEdges({
     type: options?.type,
     limit: options?.limit ?? 200,
@@ -154,7 +154,7 @@ export async function searchGraph(
   query: string,
   options?: { type?: string; agentId?: string; domain?: string; layer?: number; limit?: number }
 ): Promise<GraphNode[]> {
-  const results = await getStore().search(query, {
+  const results = await (await getStore()).search(query, {
     limit: options?.limit ?? 20,
     agentId: options?.agentId,
     domain: options?.domain,
@@ -173,7 +173,7 @@ export async function getNeighborhood(
   maxHops: number = 2,
   limit: number = 50
 ): Promise<GraphQueryResult> {
-  const store = getStore();
+  const store = await getStore();
   const allEdges = store.getAllEdges();
 
   // 인접 리스트 빌드 (O(E) 1회, BFS는 O(V+E))
@@ -259,7 +259,7 @@ export async function getStats(): Promise<{
   byType: Record<string, number>;
   mode: 'supabase' | 'in_memory';
 }> {
-  const stats = await getStore().getStats();
+  const stats = await (await getStore()).getStats();
   return { ...stats, mode: storeManager.getMode() };
 }
 
@@ -316,7 +316,7 @@ export async function getImmersionContext(
   }
 
   const nodeIds = new Set(relatedNodes.map((n) => n.id));
-  const allEdges = getStore().getAllEdges();
+  const allEdges = (await getStore()).getAllEdges();
   const relatedEdges = allEdges.filter(
     (e) => nodeIds.has(e.source) && nodeIds.has(e.target)
   );
@@ -344,7 +344,7 @@ export async function persistSession(session: CreativeSession): Promise<{
   nodesCreated: number;
   edgesCreated: number;
 }> {
-  const store = getStore();
+  const store = await getStore();
   let nodesCreated = 0;
   let edgesCreated = 0;
 

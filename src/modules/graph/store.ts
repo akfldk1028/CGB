@@ -255,37 +255,35 @@ class GraphStoreManager {
     return this._initPromise;
   }
 
-  /** 글로벌 스토어 (Collective Brain)
-   *  첫 호출 시 init 시작, 완료 전에는 InMemory 사용.
-   *  Supabase init 성공 시 교체 (InMemory에 쌓인 데이터는 merge).
-   */
+  /** 글로벌 스토어 (동기 — 캐시된 인스턴스 반환)
+   *  Vercel serverless: 첫 요청 시 ensureReady() 호출 필수. */
   getGlobalStore(): GraphStore {
     if (this._globalStore) return this._globalStore;
-    // 아직 초기화 안 됨 → InMemory 즉시 할당 + 백그라운드 Supabase 시도
     this._globalStore = new InMemoryGraphStore();
-    if (useSupabase()) {
-      this.upgradeToSupabase().catch(console.error);
-    }
     return this._globalStore;
   }
 
-  /** InMemory → Supabase 업그레이드 (백그라운드) */
-  private async upgradeToSupabase(): Promise<void> {
-    try {
-      const supaStore = await getSupabaseStore();
-      // InMemory에 쌓인 데이터가 있으면 Supabase로 옮기기
-      if (this._globalStore) {
-        const pendingNodes = this._globalStore.getAllNodes();
-        const pendingEdges = this._globalStore.getAllEdges();
-        if (pendingNodes.length > 0 || pendingEdges.length > 0) {
-          supaStore.merge(pendingNodes, pendingEdges);
-        }
-      }
-      this._globalStore = supaStore;
-      console.log('[GraphStoreManager] upgraded to SupabaseGraphStore');
-    } catch (err) {
-      console.error('[GraphStoreManager] Supabase upgrade failed, keeping InMemory:', err);
+  /** Vercel serverless 대응: 첫 요청에서 await 필수 */
+  async ensureReady(): Promise<GraphStore> {
+    if (this._globalStore?.constructor.name === 'SupabaseGraphStore') {
+      return this._globalStore;
     }
+    if (!useSupabase()) {
+      if (!this._globalStore) this._globalStore = new InMemoryGraphStore();
+      return this._globalStore;
+    }
+    try {
+      const store = await getSupabaseStore();
+      // InMemory에 쌓인 데이터 merge
+      if (this._globalStore && this._globalStore.getAllNodes().length > 0) {
+        store.merge(this._globalStore.getAllNodes(), this._globalStore.getAllEdges());
+      }
+      this._globalStore = store;
+    } catch (err) {
+      console.error('[GraphStoreManager] Supabase init failed:', err);
+      if (!this._globalStore) this._globalStore = new InMemoryGraphStore();
+    }
+    return this._globalStore;
   }
 
   /** 유저별 스토어 (My Brain) — 미래 확장용 */
