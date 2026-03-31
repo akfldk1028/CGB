@@ -279,6 +279,7 @@ class GraphStoreManager {
         store.merge(this._globalStore.getAllNodes(), this._globalStore.getAllEdges());
       }
       this._globalStore = store;
+      this._isSupabase = true;
     } catch (err) {
       console.error('[GraphStoreManager] Supabase init failed:', err);
       if (!this._globalStore) this._globalStore = new InMemoryGraphStore();
@@ -313,11 +314,11 @@ class GraphStoreManager {
     if (key === GLOBAL_KEY) this._globalStore = store;
   }
 
+  private _isSupabase = false;
+
   /** 현재 백엔드 모드 */
   getMode(): 'supabase' | 'in_memory' {
-    return useSupabase() && this._globalStore?.constructor.name === 'SupabaseGraphStore'
-      ? 'supabase'
-      : 'in_memory';
+    return this._isSupabase ? 'supabase' : 'in_memory';
   }
 }
 
