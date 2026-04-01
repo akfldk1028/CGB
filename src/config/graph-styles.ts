@@ -15,7 +15,9 @@ export const NODE_STYLES: Record<NodeType, { color: string; size: number; glow: 
   // 보조 노드
   Concept:  { color: '#4FC3F7', size: 5,  glow: 0.6 },   // 연한 하늘, 작음
   Session:  { color: '#EF5350', size: 5,  glow: 0.4 },   // 빨강, 작음
-  Agent:    { color: '#FF9800', size: 4,  glow: 0.3 },   // 주황, 가장 작음
+  Agent:    { color: '#FF9800', size: 12, glow: 1.2 },   // 주황, 크게 — 허브 노드
+  Episode:  { color: '#EF5350', size: 5,  glow: 0.5 },   // 빨강, 활동 세션
+  DecisionTrace: { color: '#78909C', size: 3, glow: 0.2 }, // 회색, 사고 과정
 };
 
 /** 엣지 스타일 — 카테고리 기반 기본값 */

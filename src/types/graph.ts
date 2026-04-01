@@ -11,8 +11,8 @@
 
 import type { EdgeType as SchemaEdgeType } from '@/modules/graph/schema';
 
-/** 노드 타입 — 4계층(Domain>Topic>Idea>Artifact) + 보조(Concept, Session, Agent) */
-export type NodeType = 'Domain' | 'Topic' | 'Idea' | 'Artifact' | 'Concept' | 'Session' | 'Agent';
+/** 노드 타입 — 4계층(Domain>Topic>Idea>Artifact) + 보조(Concept, Session, Agent, Episode, DecisionTrace) */
+export type NodeType = 'Domain' | 'Topic' | 'Idea' | 'Artifact' | 'Concept' | 'Session' | 'Agent' | 'Episode' | 'DecisionTrace';
 
 /** 엣지 타입 — schema.ts에서 정의된 3계층 union */
 export type EdgeType = SchemaEdgeType;
