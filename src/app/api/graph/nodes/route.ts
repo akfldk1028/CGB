@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listNodes, addNode, getNode, getStats } from '@/modules/graph/service';
+import { storeManager } from '@/modules/graph/store';
 import type { ApiResponse } from '@/types/api';
 
 /** GET /api/graph/nodes — 노드 목록 조회 */
@@ -49,6 +50,23 @@ export async function POST(request: Request) {
         { success: false, error: 'type and title are required' },
         { status: 400 }
       );
+    }
+
+    // Agent/Episode/Domain 등 v2 타입은 직접 store에 저장
+    if (!['Idea', 'Concept', 'Session'].includes(type)) {
+      const store = await storeManager.ensureReady();
+      const id = body.id || `${type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const node = await store.addNode({
+        id,
+        type,
+        title: params.title,
+        description: params.description ?? '',
+        agentId: params.agent_id ?? body.agent_id,
+        domain: params.domain ?? body.domain,
+        layer: params.layer ?? body.layer ?? 2,
+        createdAt: new Date().toISOString(),
+      });
+      return NextResponse.json<ApiResponse>({ success: true, data: node }, { status: 201 });
     }
 
     const nodeType = type === 'Concept' ? 'Concept' : type === 'Session' ? 'Session' : 'Idea';
