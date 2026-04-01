@@ -10,7 +10,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PREFIXES = ['/api/health', '/api/webhooks/', '/api/mcp'];
+const PUBLIC_PREFIXES = ['/api/health', '/api/webhooks/', '/api/mcp', '/api/graph/visualize', '/api/graph/stats'];
 const PROTECTED_PREFIXES = ['/api/v1/', '/api/creative/', '/api/graph/'];
 
 function isPublic(p: string) { return PUBLIC_PREFIXES.some((x) => p.startsWith(x)); }
