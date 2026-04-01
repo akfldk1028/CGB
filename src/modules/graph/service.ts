@@ -72,6 +72,10 @@ export async function addNode(
     agentId: (p.agent_id as string) ?? undefined,
     domain: (p.domain as string) ?? undefined,
     layer: (p.layer as number) ?? 2,
+    metadata: {
+      contentDomain: (p.contentDomain as string) ?? undefined,
+      postId: (p.postId as string) ?? undefined,
+    },
   });
 
   return node;
