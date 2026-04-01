@@ -29,20 +29,21 @@ export async function GET(request: Request) {
       return NextResponse.json<ApiResponse>({ success: true, data });
     }
 
-    // live mode — 실제 그래프 데이터
+    // live mode — 실제 그래프 데이터 (Supabase에서 직접)
+    const filterUserId = scope === 'my' && userId ? userId : undefined;
+    const data = await getVisualizationData(maxNodes, filterUserId);
     const stats = await getStats();
 
-    if (stats.totalNodes === 0) {
-      // 그래프가 비어있으면 mock fallback
-      const data = generateMockGraph(maxNodes, Math.floor(maxNodes * 1.5));
+    // 실제로 노드가 없으면 mock fallback
+    const hasData = (data.nodes?.length ?? 0) > 0;
+    if (!hasData) {
+      const mockData = generateMockGraph(maxNodes, Math.floor(maxNodes * 1.5));
       return NextResponse.json<ApiResponse>({
         success: true,
-        data: { ...data, _meta: { source: 'mock_fallback', reason: 'graph empty', stats } },
+        data: { ...mockData, _meta: { source: 'mock_fallback', reason: 'graph empty', stats } },
       });
     }
 
-    const filterUserId = scope === 'my' && userId ? userId : undefined;
-    const data = await getVisualizationData(maxNodes, filterUserId);
     return NextResponse.json<ApiResponse>({
       success: true,
       data: { ...data, _meta: { source: stats.mode, scope, userId: filterUserId, stats } },
