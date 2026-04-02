@@ -67,55 +67,47 @@ export async function GET(request: Request) {
       for (const e of edges) coveredIds.add(e.source_id);
     }
 
-    const toProcess = uncoveredIdeas.filter(n => !coveredIds.has(n.id) && (n.description?.length ?? 0) > 30);
+    const toProcess = uncoveredIdeas.filter(n => !coveredIds.has(n.id) && (n.description?.length ?? 0) > 30).slice(0, 30);
 
-    // 10개씩 배치 처리
-    for (let i = 0; i < toProcess.length; i += 10) {
-      const batch = toProcess.slice(i, i + 10);
-      const textsForLLM = batch.map(n => `[${n.id}] ${n.title}: ${(n.description || '').slice(0, 200)}`).join('\n');
-
+    // 1개씩 처리 (JSON 파싱 안정성)
+    for (const idea of toProcess) {
       try {
-        const concepts = await llmGenerateJSON<Array<{ ideaId: string; concepts: Array<{ name: string; description: string }> }>>({
-          system: 'Extract 1-2 key concepts from each idea. Return JSON array: [{"ideaId": "...", "concepts": [{"name": "short", "description": "one sentence"}]}]. No markdown.',
-          prompt: textsForLLM,
-          maxTokens: 500,
+        const text = `${idea.title}: ${(idea.description || '').slice(0, 300)}`;
+        const concepts = await llmGenerateJSON<Array<{ name: string; description: string }>>({
+          system: 'Extract 1-2 key concepts. Return JSON array: [{"name": "concept name", "description": "one sentence"}]. ONLY the array, nothing else.',
+          prompt: text,
+          maxTokens: 150,
         });
 
         if (!Array.isArray(concepts)) continue;
 
-        for (const item of concepts) {
-          if (!item.ideaId || !item.concepts) continue;
-          const idea = batch.find(n => n.id === item.ideaId);
-          if (!idea) continue;
+        for (const c of concepts.slice(0, 2)) {
+          if (!c.name || c.name.length < 2) continue;
+          const conceptId = `concept-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
 
-          for (const c of item.concepts.slice(0, 2)) {
-            if (!c.name) continue;
-            const conceptId = `concept-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50)}`;
+          await store.addNode({
+            id: conceptId,
+            type: 'Concept',
+            title: c.name,
+            description: c.description || c.name,
+            agentId: idea.agent_id ?? undefined,
+            domain: idea.domain ?? undefined,
+            layer: 1,
+            createdAt: new Date().toISOString(),
+          });
 
-            await store.addNode({
-              id: conceptId,
-              type: 'Concept',
-              title: c.name,
-              description: c.description || c.name,
-              agentId: idea.agent_id ?? undefined,
-              domain: idea.domain ?? undefined,
-              layer: 1,
-              createdAt: new Date().toISOString(),
-            });
+          await store.addEdge({
+            id: `edge-uc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            source: idea.id,
+            target: conceptId,
+            type: 'USES_CONCEPT',
+            createdAt: new Date().toISOString(),
+          });
 
-            await store.addEdge({
-              id: `edge-uc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              source: item.ideaId,
-              target: conceptId,
-              type: 'USES_CONCEPT',
-              createdAt: new Date().toISOString(),
-            });
-
-            results.conceptsExtracted++;
-          }
+          results.conceptsExtracted++;
         }
       } catch (err) {
-        results.errors.push(`concept batch ${i}: ${(err as Error).message}`);
+        results.errors.push(`concept ${idea.id}: ${(err as Error).message}`);
       }
     }
   } catch (err) {
@@ -173,9 +165,9 @@ export async function GET(request: Request) {
         const summaryInput = ideas.map(i => `- ${i.title}: ${(i.description || '').slice(0, 100)}`).join('\n');
 
         const reflection = await llmGenerate({
-          system: 'You are summarizing an AI agent\'s daily activities into 2-3 key insights. Be concise and focus on what was learned, not just what was done.',
-          prompt: `This agent interacted with ${ideas.length} topics today:\n${summaryInput}\n\nWhat are the 2-3 key insights or patterns from today's activities?`,
-          maxTokens: 200,
+          system: 'Summarize this agent\'s daily activities into 2-3 key insights. Focus on what was LEARNED, patterns noticed, and connections made. Write directly — no intro like "Here are".',
+          prompt: `Today's ${ideas.length} interactions:\n${summaryInput}\n\nKey insights:`,
+          maxTokens: 300,
         });
 
         if (!reflection || reflection.length < 20) continue;
