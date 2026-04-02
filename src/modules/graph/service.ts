@@ -61,7 +61,8 @@ export async function addNode(
 
   // v2: BrainClient에서 전달하는 agent_id, domain, layer 반영
   const p = params as unknown as Record<string, unknown>;
-  await (await getStore()).addNode({
+  const store = await getStore();
+  await store.addNode({
     id: node.id,
     type: node.type,
     title: node.title,
@@ -77,6 +78,24 @@ export async function addNode(
       postId: (p.postId as string) ?? undefined,
     },
   });
+
+  // Novelty score (Luo 2022 Knowledge Distance) — 비동기
+  try {
+    const { calculateNoveltyInMemory } = await import('./queries/novelty');
+    const allEdges = store.getAllEdges();
+    if (allEdges.length > 0) {
+      const score = calculateNoveltyInMemory(node.id, allEdges);
+      if (score > 0) {
+        // score 업데이트 (비동기, fire-and-forget)
+        const { supabaseRest } = await import('@/lib/supabase');
+        supabaseRest('graph_nodes', {
+          method: 'PATCH',
+          query: `id=eq.${encodeURIComponent(node.id)}`,
+          body: { score },
+        }).catch(() => {});
+      }
+    }
+  } catch {}
 
   return node;
 }
