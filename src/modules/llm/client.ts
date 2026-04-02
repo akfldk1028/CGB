@@ -115,6 +115,16 @@ export function extractJSON<T = unknown>(text: string): T {
     }
   }
 
+  // Strategy 4: truncated array — try appending }] to fix
+  const arrStart = text.indexOf('[{');
+  if (arrStart !== -1) {
+    let candidate = text.slice(arrStart).replace(/,\s*$/, '');
+    // Try closing the last object + array
+    for (const suffix of ['"}]', '}]', '"]', ']']) {
+      try { return JSON.parse(candidate + suffix) as T; } catch { /* try next */ }
+    }
+  }
+
   throw new Error(`JSON extraction failed: ${text.slice(0, 200)}`);
 }
 
