@@ -74,9 +74,9 @@ export async function GET(request: Request) {
       try {
         const text = `${idea.title}: ${(idea.description || '').slice(0, 300)}`;
         const concepts = await llmGenerateJSON<Array<{ name: string; description: string }>>({
-          system: 'Extract 1-2 key concepts. Return JSON array: [{"name": "concept name", "description": "one sentence"}]. ONLY the array, nothing else.',
+          system: 'Extract 1-2 key concepts from the text. Respond with ONLY a raw JSON array, no markdown, no ```json blocks. Example: [{"name":"AI","description":"artificial intelligence"}]',
           prompt: text,
-          maxTokens: 150,
+          maxTokens: 300,
         });
 
         if (!Array.isArray(concepts)) continue;
