@@ -54,7 +54,7 @@ export default function GraphPage() {
     }
     try {
       const view = viewTab === 'my' ? 'user' : viewTab;
-      const params = new URLSearchParams({ mode, maxNodes: '500', view });
+      const params = new URLSearchParams({ mode, maxNodes: '2000', view });
       if (viewTab === 'domain' && filterDomain) params.set('domainId', filterDomain);
       if (viewTab === 'agent' && filterAgent) params.set('agentId', filterAgent);
       const res = await fetch(`/api/v1/graph/visualize?${params}`);
@@ -304,9 +304,24 @@ export default function GraphPage() {
             <span><span className="text-amber-400 font-semibold">{filteredData.nodes.length}</span> <span className="text-white/30">nodes</span></span>
             <span><span className="text-purple-400 font-semibold">{filteredData.links.length}</span> <span className="text-white/30">edges</span></span>
           </div>
+          {meta?.stats && (() => {
+            const s = meta.stats as { totalNodes?: number; totalEdges?: number; byType?: Record<string, number> };
+            return (
+              <>
+                <div className="text-[9px] text-white/25 mt-1">
+                  DB total: <span className="text-cyan-400">{s.totalNodes?.toLocaleString() ?? '?'}</span> nodes / <span className="text-cyan-400">{s.totalEdges?.toLocaleString() ?? '?'}</span> edges
+                </div>
+                {s.byType && (
+                  <div className="text-[9px] text-white/20 mt-0.5">
+                    {Object.entries(s.byType).map(([t, c]) => `${t}: ${c.toLocaleString()}`).join(' · ')}
+                  </div>
+                )}
+              </>
+            );
+          })()}
           {filteredData.nodes.length < rawData.nodes.length && (
-            <div className="text-[9px] text-white/20 mt-1">
-              {rawData.nodes.length} total, {rawData.nodes.length - filteredData.nodes.length} filtered out
+            <div className="text-[9px] text-white/20 mt-0.5">
+              {rawData.nodes.length - filteredData.nodes.length} filtered out
             </div>
           )}
           {meta?.source && (

@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const agentId = searchParams.get('agent_id') ?? undefined;
     const domain = searchParams.get('domain') ?? undefined;
     const layer = searchParams.has('layer') ? parseInt(searchParams.get('layer')!, 10) : undefined;
-    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 1), 500);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 1), 5000);
 
     // 특정 노드 조회
     if (id) {

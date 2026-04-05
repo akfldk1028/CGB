@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   // Public access (no auth required for graph visualization)
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('mode') ?? 'live';
-  const maxNodes = parseInt(searchParams.get('maxNodes') ?? '100', 10);
+  const maxNodes = Math.min(parseInt(searchParams.get('maxNodes') ?? '500', 10) || 500, 5000);
   const view = (searchParams.get('view') ?? 'collective') as BrainView;
   const domainId = searchParams.get('domainId') ?? undefined;
   const agentId = searchParams.get('agentId') ?? undefined;

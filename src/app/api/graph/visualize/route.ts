@@ -12,7 +12,7 @@ import type { ApiResponse } from '@/types/api';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('mode') ?? 'live';
-  const maxNodes = Math.min(Math.max(parseInt(searchParams.get('maxNodes') ?? '100', 10) || 100, 1), 500);
+  const maxNodes = Math.min(Math.max(parseInt(searchParams.get('maxNodes') ?? '500', 10) || 500, 1), 5000);
   const scope = (searchParams.get('scope') ?? 'collective') as 'my' | 'collective';
   const userId = searchParams.get('userId') ?? undefined;
 

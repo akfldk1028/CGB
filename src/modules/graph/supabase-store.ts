@@ -273,7 +273,20 @@ export class SupabaseGraphStore implements GraphStore {
   // ── Stats ──
 
   async getStats(): Promise<StoreStats> {
-    // 캐시 기반 stats (DB round-trip 불필요)
+    // DB RPC — 정확한 수치 (캐시 limit에 무관)
+    try {
+      const result = await supabaseRpc<{ nodes: { type: string; count: number }[]; total_nodes: number; total_edges: number }>('graph_stats', {});
+      if (result && result.total_nodes !== undefined) {
+        const byType: Record<string, number> = {};
+        for (const row of result.nodes ?? []) {
+          byType[row.type] = row.count;
+        }
+        return { totalNodes: result.total_nodes, totalEdges: result.total_edges, byType };
+      }
+    } catch {
+      // RPC 실패 시 캐시 fallback
+    }
+
     const byType: Record<string, number> = {};
     for (const n of _cachedNodes) {
       byType[n.type] = (byType[n.type] ?? 0) + 1;
@@ -340,10 +353,10 @@ export class SupabaseGraphStore implements GraphStore {
     try {
       const [nodes, edges] = await Promise.all([
         supabaseRest<DbNode[]>('graph_nodes', {
-          query: 'expired_at=is.null&order=created_at.desc&limit=5000&select=id,agent_id,domain,layer,type,title,description,score,metadata,created_at,expired_at',
+          query: 'expired_at=is.null&order=created_at.desc&limit=20000&select=id,agent_id,domain,layer,type,title,description,score,metadata,created_at,expired_at',
         }),
         supabaseRest<DbEdge[]>('graph_edges', {
-          query: 'expired_at=is.null&order=created_at.desc&limit=15000',
+          query: 'expired_at=is.null&order=created_at.desc&limit=50000',
         }),
       ]);
       _cachedNodes = nodes.map(dbToStoreNode);
