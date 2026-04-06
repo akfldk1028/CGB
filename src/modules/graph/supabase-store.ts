@@ -283,8 +283,8 @@ export class SupabaseGraphStore implements GraphStore {
         }
         return { totalNodes: result.total_nodes, totalEdges: result.total_edges, byType };
       }
-    } catch {
-      // RPC 실패 시 캐시 fallback
+    } catch (err) {
+      console.warn('[SupabaseGraphStore] graph_stats RPC failed, using cache:', (err as Error).message);
     }
 
     const byType: Record<string, number> = {};
