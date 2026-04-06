@@ -93,7 +93,7 @@ export async function GET(request: Request) {
         for (const idea of ideas.slice(0, 3)) {
           if (!idea.title || idea.title.length < 3) continue;
 
-          const ideaId = `idea-bs-${agentId}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+          const ideaId = `idea-bs-${agentId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           await store.addNode({
             id: ideaId,
             type: 'Idea',
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
 
           // Agent → OWNS → Idea
           await store.addEdge({
-            id: `edge-bs-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            id: `edge-bs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             source: `agent-${agentId}`,
             target: ideaId,
             type: 'OWNS',

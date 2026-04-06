@@ -12,7 +12,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseRest } from '@/lib/supabase';
 import { llmGenerateJSON } from '@/modules/llm/client';
-import { storeManager } from '@/modules/graph/store';
 
 export const maxDuration = 300;
 
@@ -46,8 +45,6 @@ export async function GET(request: Request) {
     errors: [] as string[],
   };
 
-  const store = await storeManager.ensureReady();
-
   try {
     // score가 null이거나 0인 Idea (최대 30개)
     const unscored = await supabaseRest<DbNode[]>('graph_nodes', {
@@ -74,7 +71,9 @@ export async function GET(request: Request) {
           maxTokens: 500,
         });
 
-        if (!evalResult || typeof evalResult.creativeThinking !== 'number') continue;
+        // Validate all 6 dimensions exist
+        const dims = ['domainRelevance', 'creativeThinking', 'intrinsicMotivation', 'specificity', 'marketNeed', 'competitiveAdvantage'] as const;
+        if (!evalResult || dims.some(d => typeof evalResult[d] !== 'number')) continue;
 
         // 가중 점수 계산
         const overall = Math.round(
@@ -86,13 +85,18 @@ export async function GET(request: Request) {
           evalResult.competitiveAdvantage * 0.15
         );
 
-        // score + evaluation metadata 업데이트
+        // score + evaluation metadata (merge, not overwrite)
+        const existingNode = await supabaseRest<{ metadata: Record<string, unknown> }[]>('graph_nodes', {
+          query: `id=eq.${encodeURIComponent(idea.id)}&select=metadata`,
+        });
+        const existingMeta = existingNode?.[0]?.metadata || {};
+
         await supabaseRest('graph_nodes', {
           method: 'PATCH',
           query: `id=eq.${encodeURIComponent(idea.id)}`,
           body: {
             score: overall,
-            metadata: { evaluation: evalResult, evaluated_at: new Date().toISOString() },
+            metadata: { ...existingMeta, evaluation: evalResult, evaluated_at: new Date().toISOString() },
           },
         });
 
