@@ -71,7 +71,7 @@ export async function GET(request: Request) {
         const evalResult = await llmGenerateJSON<EvalResult>({
           system: `Score this idea on 6 dimensions (0-100). Respond with ONLY a JSON object, no markdown, no explanation. Keys: domainRelevance, creativeThinking, intrinsicMotivation, specificity, marketNeed, competitiveAdvantage. Example: {"domainRelevance":70,"creativeThinking":85,"intrinsicMotivation":60,"specificity":75,"marketNeed":65,"competitiveAdvantage":55}`,
           prompt: `Domain: ${idea.domain || 'general'}\nIdea: ${idea.title}\nDescription: ${(idea.description || '').slice(0, 300)}`,
-          maxTokens: 200,
+          maxTokens: 500,
         });
 
         if (!evalResult || typeof evalResult.creativeThinking !== 'number') continue;
