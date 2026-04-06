@@ -80,7 +80,7 @@ Score this idea on 6 dimensions (0-100 each):
 
 Respond with ONLY a raw JSON object, no markdown. Example: {"domainRelevance":70,"creativeThinking":85,"intrinsicMotivation":60,"specificity":75,"marketNeed":65,"competitiveAdvantage":55}`,
           prompt: `Domain: ${idea.domain || 'general'}\nIdea: ${idea.title}\nDescription: ${(idea.description || '').slice(0, 400)}`,
-          maxTokens: 200,
+          maxTokens: 400,
         });
 
         if (!evalResult || typeof evalResult.creativeThinking !== 'number') continue;

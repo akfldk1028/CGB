@@ -83,9 +83,9 @@ export async function GET(request: Request) {
 
         // LLM으로 아이디어 3개 생성
         const ideas = await llmGenerateJSON<Array<{ title: string; description: string }>>({
-          system: 'Generate 3 creative ideas. Each idea should be novel and actionable. Respond with ONLY a raw JSON array. Example: [{"title":"AI Music Therapy","description":"Use generative AI to create personalized therapeutic music based on biometric data."}]',
+          system: 'Generate 3 creative ideas. Each must have a short title (under 60 chars) and a 1-sentence description. Respond with ONLY a raw JSON array, NO markdown, NO ```json blocks. Example: [{"title":"AI Music Therapy","description":"Use generative AI to create personalized therapeutic music."}]',
           prompt: topicPrompt,
-          maxTokens: 600,
+          maxTokens: 800,
         });
 
         if (!Array.isArray(ideas)) continue;
