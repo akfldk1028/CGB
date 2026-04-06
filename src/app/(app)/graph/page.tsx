@@ -45,6 +45,7 @@ export default function GraphPage() {
   const [filterDomain, setFilterDomain] = useState<string | null>(null);
   const [filterAgent, setFilterAgent] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [maxNodes, setMaxNodes] = useState(2000);
 
   // ── 데이터 로드 ──
   const loadGraph = useCallback(async (mode: DataMode, isPolling = false) => {
@@ -54,7 +55,7 @@ export default function GraphPage() {
     }
     try {
       const view = viewTab === 'my' ? 'user' : viewTab;
-      const params = new URLSearchParams({ mode, maxNodes: '2000', view });
+      const params = new URLSearchParams({ mode, maxNodes: String(maxNodes), view });
       if (viewTab === 'domain' && filterDomain) params.set('domainId', filterDomain);
       if (viewTab === 'agent' && filterAgent) params.set('agentId', filterAgent);
       const res = await fetch(`/api/v1/graph/visualize?${params}`);
@@ -74,7 +75,7 @@ export default function GraphPage() {
       }
     } catch { /* polling error ignored */ }
     finally { if (!isPolling) setLoading(false); }
-  }, [viewTab, filterDomain, filterAgent]);
+  }, [viewTab, filterDomain, filterAgent, maxNodes]);
 
   // ── 클라이언트 필터링 ──
   const filteredData = useMemo((): Graph3DData => {
@@ -157,7 +158,7 @@ export default function GraphPage() {
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
-  }, [dataMode, viewTab, filterDomain, filterAgent, loadGraph]);
+  }, [dataMode, viewTab, filterDomain, filterAgent, maxNodes, loadGraph]);
 
   useEffect(() => {
     if (dataMode !== 'live') return;
@@ -330,6 +331,27 @@ export default function GraphPage() {
           {dataMode === 'live' && liveCount > 0 && (
             <div className="text-[9px] text-emerald-400 mt-0.5 animate-pulse">+{liveCount} new</div>
           )}
+        </div>
+
+        {/* Max Nodes Slider */}
+        <div className="glass rounded-xl px-3 py-2.5">
+          <div className="text-white/30 text-[9px] font-mono mb-1.5 tracking-wider flex justify-between">
+            <span>MAX NODES</span>
+            <span className="text-amber-400">{maxNodes.toLocaleString()}</span>
+          </div>
+          <input
+            type="range"
+            min={100}
+            max={5000}
+            step={100}
+            value={maxNodes}
+            onChange={(e) => setMaxNodes(Number(e.target.value))}
+            className="w-full h-1 appearance-none bg-white/10 rounded-full cursor-pointer accent-amber-500"
+          />
+          <div className="flex justify-between text-[8px] text-white/20 mt-0.5">
+            <span>100</span>
+            <span>5,000</span>
+          </div>
         </div>
 
         {/* Data Mode */}
