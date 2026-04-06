@@ -125,6 +125,17 @@ export function extractJSON<T = unknown>(text: string): T {
     }
   }
 
+  // Strategy 5: truncated object — try closing with }
+  if (firstBrace !== -1) {
+    // Find the last complete key-value pair, then close the object
+    let candidate = text.slice(firstBrace).replace(/,\s*"[^"]*"?\s*:?\s*[^,}]*$/, '');
+    if (!candidate.endsWith('}')) candidate += '}';
+    try { return JSON.parse(candidate) as T; } catch { /* try simpler */ }
+    // Simpler: just append }
+    const simple = text.slice(firstBrace).replace(/,\s*$/, '') + '}';
+    try { return JSON.parse(simple) as T; } catch { /* fall through */ }
+  }
+
   throw new Error(`JSON extraction failed: ${text.slice(0, 200)}`);
 }
 
