@@ -69,18 +69,9 @@ export async function GET(request: Request) {
     for (const idea of toEvaluate) {
       try {
         const evalResult = await llmGenerateJSON<EvalResult>({
-          system: `You are a creative idea evaluator using Amabile's Componential Theory (1996) + Agent Ideate (IJCAI 2025).
-Score this idea on 6 dimensions (0-100 each):
-- domainRelevance (weight 0.15): How well does it fit domain knowledge?
-- creativeThinking (weight 0.30): How novel and surprising?
-- intrinsicMotivation (weight 0.10): How intrinsically interesting?
-- specificity (weight 0.15): How clearly defined?
-- marketNeed (weight 0.15): Is there a clear user need?
-- competitiveAdvantage (weight 0.15): Unique advantage over existing?
-
-Respond with ONLY a raw JSON object, no markdown. Example: {"domainRelevance":70,"creativeThinking":85,"intrinsicMotivation":60,"specificity":75,"marketNeed":65,"competitiveAdvantage":55}`,
-          prompt: `Domain: ${idea.domain || 'general'}\nIdea: ${idea.title}\nDescription: ${(idea.description || '').slice(0, 400)}`,
-          maxTokens: 400,
+          system: `Score this idea on 6 dimensions (0-100). Respond with ONLY a JSON object, no markdown, no explanation. Keys: domainRelevance, creativeThinking, intrinsicMotivation, specificity, marketNeed, competitiveAdvantage. Example: {"domainRelevance":70,"creativeThinking":85,"intrinsicMotivation":60,"specificity":75,"marketNeed":65,"competitiveAdvantage":55}`,
+          prompt: `Domain: ${idea.domain || 'general'}\nIdea: ${idea.title}\nDescription: ${(idea.description || '').slice(0, 300)}`,
+          maxTokens: 200,
         });
 
         if (!evalResult || typeof evalResult.creativeThinking !== 'number') continue;
