@@ -1,0 +1,16 @@
+name: search_all
+source_tool: search_all
+tier: free
+
+graph:
+  auto_save: true
+  node_type: Concept
+  sub_domain_field: "$.lawType"
+
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: 통합검색 키워드
+  required: [query]

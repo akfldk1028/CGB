@@ -1,0 +1,28 @@
+name: korean-law
+display_name: 한국 법률
+description: 법제처 39개 API — 법령·판례·조례·조약 검색·조회·분석
+version: 3.0.0
+icon: ⚖️
+
+connection:
+  transport: http
+  url: http://localhost:8100/mcp
+  health: http://localhost:8100/health
+  timeout: 30000
+  retry: 3
+
+sub_domains: auto
+
+pricing:
+  strategy: tool_tier
+  default_tier: pro
+
+keys:
+  central_env: LAW_OC
+  byok: true
+  byok_header: x-law-api-key
+
+graph:
+  default_layer: 2
+  promote_threshold: 40
+  auto_concepts: true

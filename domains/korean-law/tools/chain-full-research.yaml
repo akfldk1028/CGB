@@ -1,0 +1,18 @@
+name: chain_full_research
+source_tool: chain_full_research
+tier: enterprise
+
+graph:
+  auto_save: true
+  node_type: Idea
+  mapping:
+    title: "$.query"
+    description: "$.summary"
+
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: 리서치 주제
+  required: [query]

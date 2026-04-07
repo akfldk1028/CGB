@@ -1,0 +1,18 @@
+name: get_law_text
+source_tool: get_law_text
+tier: pro
+
+graph:
+  auto_save: false
+  node_type: Artifact
+
+input_schema:
+  type: object
+  properties:
+    mst:
+      type: string
+      description: 법령 MST 코드
+    jo:
+      type: string
+      description: 조문번호 (JO코드 6자리)
+  required: [mst]

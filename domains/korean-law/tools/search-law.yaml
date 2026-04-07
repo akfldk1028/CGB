@@ -1,0 +1,20 @@
+name: search_law
+source_tool: search_law
+tier: free
+
+graph:
+  auto_save: true
+  node_type: Concept
+  mapping:
+    title: "$.lawNameKorean"
+    description: "$.lawName"
+    metadata: ["$.lawId", "$.mst", "$.lawType"]
+  sub_domain_field: "$.lawType"
+
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: 법령명 키워드
+  required: [query]

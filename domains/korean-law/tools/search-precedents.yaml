@@ -1,0 +1,20 @@
+name: search_precedents
+source_tool: search_precedents
+tier: pro
+
+graph:
+  auto_save: true
+  node_type: Concept
+  mapping:
+    title: "$.caseNm"
+    description: "$.courtNm"
+    metadata: ["$.serialNum", "$.caseNo"]
+  sub_domain_field: "$.courtNm"
+
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: 판례 검색 키워드
+  required: [query]
