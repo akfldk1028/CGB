@@ -5,6 +5,7 @@
  * with JSON Schema inputSchema and execute functions.
  */
 
+import { getDomainMCPTools } from './domain-tools';
 import { webSearchTool } from '../modules/agents/tools/web-search';
 import { graphQueryTool, graphAddNodeTool, graphAddEdgeTool, graphSearchTool } from '../modules/agents/tools/graph-tools';
 import { scamperTool } from '../modules/agents/tools/scamper-tool';
@@ -84,7 +85,32 @@ export const MCP_TOOLS: MCPToolDef[] = [
   fromAgentTool(noveltyTool),
 ];
 
-/** Lookup tool by name. */
+let _domainToolsCache: MCPToolDef[] | null = null;
+
+async function loadDomainTools(): Promise<MCPToolDef[]> {
+  if (_domainToolsCache) return _domainToolsCache;
+  try {
+    _domainToolsCache = await getDomainMCPTools();
+  } catch {
+    _domainToolsCache = [];
+  }
+  return _domainToolsCache;
+}
+
+/** All tools: internal + domain */
+export async function getAllMCPTools(): Promise<MCPToolDef[]> {
+  const domainTools = await loadDomainTools();
+  return [...MCP_TOOLS, ...domainTools];
+}
+
+/** Lookup tool by name (sync for internal, checks domain cache too). */
 export function findTool(name: string): MCPToolDef | undefined {
-  return MCP_TOOLS.find((t) => t.name === name);
+  const internal = MCP_TOOLS.find((t) => t.name === name);
+  if (internal) return internal;
+  return _domainToolsCache?.find((t) => t.name === name);
+}
+
+/** Invalidate domain tools cache */
+export function invalidateDomainToolsCache(): void {
+  _domainToolsCache = null;
 }
