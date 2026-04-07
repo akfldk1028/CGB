@@ -15,8 +15,13 @@ export async function GET(request: Request) {
   const type = searchParams.get('type') ?? undefined;
   const limit = parseInt(searchParams.get('limit') ?? '200', 10);
 
-  const edges = await listEdges({ nodeId, type, limit });
-  return ok({ edges, total: edges.length }, { tier: auth.tier });
+  try {
+    const edges = await listEdges({ nodeId, type, limit });
+    return ok({ edges, total: edges.length }, { tier: auth.tier });
+  } catch (err) {
+    console.error('[GET /graph/edges] error:', err);
+    return fail('INTERNAL', (err as Error).message, 500);
+  }
 }
 
 export async function POST(request: Request) {
@@ -24,9 +29,14 @@ export async function POST(request: Request) {
   if (!auth.authenticated) return fail('UNAUTHORIZED', auth.error!, 401);
   if (!tierAtLeast(auth.tier, 'pro')) return fail('TIER_REQUIRED', 'Pro tier required to create edges', 403);
 
-  const { sourceId, targetId, type } = await request.json();
-  if (!sourceId || !targetId || !type) return fail('VALIDATION', 'sourceId, targetId, and type are required');
+  try {
+    const { sourceId, targetId, type } = await request.json();
+    if (!sourceId || !targetId || !type) return fail('VALIDATION', 'sourceId, targetId, and type are required');
 
-  const edge = await addEdge({ sourceId, targetId, type });
-  return created(edge, { tier: auth.tier });
+    const edge = await addEdge({ sourceId, targetId, type });
+    return created(edge, { tier: auth.tier });
+  } catch (err) {
+    console.error('[POST /graph/edges] error:', err);
+    return fail('INTERNAL', (err as Error).message, 500);
+  }
 }
