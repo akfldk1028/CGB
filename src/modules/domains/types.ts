@@ -1,3 +1,5 @@
+import type { Tier } from '@/lib/api-keys';
+
 /** domain.yaml 파싱 결과 */
 export interface DomainConfig {
   name: string;
@@ -112,5 +114,5 @@ export interface DomainInfo {
   tools_count: number;
 }
 
-// Re-export Tier from existing system
-export type { Tier } from '@/lib/api-keys';
+// Re-export Tier
+export type { Tier };
