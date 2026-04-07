@@ -223,7 +223,8 @@ async function getSupabaseStore(): Promise<GraphStore> {
   if (!_supabaseStorePromise) {
     _supabaseStorePromise = import('./supabase-store').then(async (mod) => {
       const store = new mod.SupabaseGraphStore();
-      await store.loadCache();
+      // probe는 비동기로 시작하되 await 안 함 — 초기화 빨리 끝내기
+      store.loadCache().catch(() => {});
       return store;
     });
   }
