@@ -1,7 +1,7 @@
 import { authenticateRequest, tierAtLeast } from '@/lib/api-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { ok, created, fail } from '@/lib/api-response';
-import { listNodes, addNode, getNode, getStats } from '@/modules/graph/service';
+import { listNodes, addNode, getNode } from '@/modules/graph/service';
 import { storeManager } from '@/modules/graph/store';
 
 export async function GET(request: Request) {
@@ -27,8 +27,7 @@ export async function GET(request: Request) {
     }
 
     const nodes = await listNodes({ type, agentId, domain, layer, limit });
-    const stats = await getStats();
-    return ok({ nodes, total: nodes.length, stats }, { tier: auth.tier, remaining: rl.remaining, limit: rl.limit });
+    return ok({ nodes, total: nodes.length }, { tier: auth.tier, remaining: rl.remaining, limit: rl.limit });
   } catch (err) {
     console.error('[GET /graph/nodes] error:', err);
     return fail('INTERNAL', (err as Error).message, 500);
