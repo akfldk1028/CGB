@@ -23,28 +23,29 @@ export interface RateLimitResult {
 
 export async function checkRateLimit(userId: string, tier: Tier): Promise<RateLimitResult> {
   const config = LIMITS[tier] ?? LIMITS.free;
-  const minute = Math.floor(Date.now() / (config.windowSec * 1000));
-  const key = `${PREFIX.RATE}${userId}:${minute}`;
 
-  const count = await kv.incr(key);
-
-  // 첫 번째 요청이면 TTL 설정
-  if (count === 1) {
-    await kv.expire(key, config.windowSec + 5); // 여유 5초
+  // team tier (admin/master key) — skip rate limiting
+  if (tier === 'team') {
+    return { allowed: true, remaining: config.max, limit: config.max };
   }
 
-  if (count > config.max) {
-    return {
-      allowed: false,
-      remaining: 0,
-      limit: config.max,
-      retryAfterSec: config.windowSec,
-    };
-  }
+  try {
+    const minute = Math.floor(Date.now() / (config.windowSec * 1000));
+    const key = `${PREFIX.RATE}${userId}:${minute}`;
 
-  return {
-    allowed: true,
-    remaining: config.max - count,
-    limit: config.max,
-  };
+    const count = await kv.incr(key);
+
+    if (count === 1) {
+      await kv.expire(key, config.windowSec + 5);
+    }
+
+    if (count > config.max) {
+      return { allowed: false, remaining: 0, limit: config.max, retryAfterSec: config.windowSec };
+    }
+
+    return { allowed: true, remaining: config.max - count, limit: config.max };
+  } catch {
+    // Redis failure — allow request (fail-open)
+    return { allowed: true, remaining: config.max, limit: config.max };
+  }
 }
