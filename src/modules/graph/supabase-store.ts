@@ -351,20 +351,30 @@ export class SupabaseGraphStore implements GraphStore {
   // ── Internal helpers ──
 
   /** 캐시 로드 — 앱 시작 시 1회 호출
-   *  Vercel serverless: 전체 로드는 타임아웃 위험 → 연결 확인만 하고 캐시는 lazy */
+   *  Vercel serverless: 전체 로드는 타임아웃 위험 → 연결 확인만 하고 캐시는 lazy
+   *  연결 실패해도 store 자체는 유지 (각 API가 직접 Supabase 호출) */
   async loadCache(): Promise<void> {
     if (_cacheLoaded) return;
     try {
-      // 연결 확인용 최소 쿼리 (1 row) — 전체 캐시 로드 대신
-      const probe = await supabaseRest<DbNode[]>('graph_nodes', {
-        query: 'limit=1&select=id',
+      // 연결 확인용 최소 쿼리 (1 row, 5s timeout)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+      const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/graph_nodes?limit=1&select=id`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+        signal: controller.signal,
       });
-      // 연결 성공 → 캐시는 lazy로 (getAllNodes 호출 시)
+      clearTimeout(timeout);
       _cacheLoaded = true;
-      console.log(`[SupabaseGraphStore] connection verified (probe: ${probe.length} rows). Cache will load lazily.`);
+      console.log(`[SupabaseGraphStore] connection verified (status: ${res.status})`);
     } catch (err) {
       console.error('[SupabaseGraphStore] connection probe failed:', (err as Error).message);
-      throw err; // init에서 InMemory fallback 유도
+      // 연결 실패해도 store 유지 — 개별 API 호출에서 재시도
+      _cacheLoaded = true;
     }
   }
 

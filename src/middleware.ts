@@ -29,8 +29,19 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith('/api/')) return NextResponse.next();
 
-  // Public → 통과
-  if (isPublic(pathname)) return NextResponse.next();
+  // Public → 통과 (마스터키 있으면 인증 헤더 주입)
+  if (isPublic(pathname)) {
+    const masterKey = process.env.CREATIVEGRAPH_API_KEY;
+    const auth = request.headers.get('authorization');
+    const apiKey = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (masterKey && apiKey === masterKey) {
+      const headers = stripInternalHeaders(request);
+      headers.set('x-user-id', 'admin');
+      headers.set('x-user-tier', 'team');
+      return NextResponse.next({ request: { headers } });
+    }
+    return NextResponse.next();
+  }
 
   // Cron → CRON_SECRET (미설정 시 차단)
   if (pathname.startsWith('/api/cron/')) {
