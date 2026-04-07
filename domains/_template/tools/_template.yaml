@@ -1,0 +1,19 @@
+name: tool_name
+source_tool: tool_name
+tier: pro
+
+graph:
+  auto_save: true
+  node_type: Concept
+  mapping:
+    title: "$.title"
+    description: "$.description"
+  sub_domain_field: "$.category"
+
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Search query
+  required: [query]

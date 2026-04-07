@@ -1,0 +1,28 @@
+name: my-domain
+display_name: My Domain
+description: Description of this domain MCP
+version: 1.0.0
+icon: 🔧
+
+connection:
+  transport: http
+  url: http://localhost:8100/mcp
+  health: http://localhost:8100/health
+  timeout: 30000
+  retry: 3
+
+sub_domains: auto
+
+pricing:
+  strategy: tool_tier
+  default_tier: pro
+
+keys:
+  central_env: MY_DOMAIN_API_KEY
+  byok: true
+  byok_header: x-my-domain-key
+
+graph:
+  default_layer: 2
+  promote_threshold: 40
+  auto_concepts: true
