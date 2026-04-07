@@ -5,6 +5,8 @@ import type {
 import type { Tier } from '@/lib/api-keys';
 import { DomainRegistry } from './registry';
 import { resolveKey } from './key-manager';
+import { resultToNode, detectSubDomain } from './graph-sink';
+import { storeManager } from '@/modules/graph/store';
 
 export class DomainGateway {
   private healthStatus = new Map<string, 'available' | 'unavailable' | 'unknown'>();
@@ -73,11 +75,60 @@ export class DomainGateway {
       return this.err(domainId, tool, 'UPSTREAM_ERROR', message);
     }
 
+    // Graph sink: convert result → node → store
+    let graphResult: DomainCallResult['graph'] = undefined;
+    const shouldSave = (opts?.saveToGraph !== false) && toolConfig.graph.auto_save;
+
+    if (shouldSave && mcpResult) {
+      try {
+        const store = await storeManager.ensureReady();
+        const items = Array.isArray(mcpResult) ? mcpResult : [mcpResult];
+        let nodesCreated = 0;
+        let edgesCreated = 0;
+        let subDomain: string | undefined;
+
+        for (const item of items.slice(0, 10)) {
+          const node = resultToNode(item, toolConfig, domainId, opts?.agentId);
+          subDomain = subDomain || detectSubDomain(item, toolConfig);
+          if (subDomain) node.domain = `${domainId}/${subDomain}`;
+
+          await store.addNode(node);
+          nodesCreated++;
+
+          if (opts?.agentId) {
+            await store.addEdge({
+              id: `edge-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+              source: `agent-${opts.agentId}`,
+              target: node.id,
+              type: 'OWNS',
+              createdAt: new Date().toISOString(),
+            });
+            edgesCreated++;
+          }
+
+          await store.addEdge({
+            id: `edge-${Date.now()}-${Math.random().toString(36).slice(2, 4)}`,
+            source: node.id,
+            target: `domain-${domainId}`,
+            type: 'BELONGS_TO',
+            createdAt: new Date().toISOString(),
+          });
+          edgesCreated++;
+        }
+
+        graphResult = { nodes_created: nodesCreated, edges_created: edgesCreated, sub_domain: subDomain };
+      } catch (err) {
+        // Graph sink failure is non-fatal
+        console.error(`[DomainGateway] graph-sink error:`, err);
+      }
+    }
+
     return {
       ok: true,
       domain: domainId,
       tool,
       result: mcpResult,
+      graph: graphResult,
     };
   }
 
