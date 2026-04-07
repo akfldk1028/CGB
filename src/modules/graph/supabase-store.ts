@@ -301,14 +301,17 @@ export class SupabaseGraphStore implements GraphStore {
   // ── Bulk access (동기 — 캐시 사용) ──
 
   getAllNodes(): StoreNode[] {
-    if (!_cacheLoaded) {
-      // 비동기 초기화가 아직 안 됐으면 빈 배열 (loadCache 호출 필요)
-      this.loadCache().catch(console.error);
+    if (_cachedNodes.length === 0) {
+      // full cache 아직 안 됐으면 비동기 로드 시작
+      this.loadFullCache().catch(console.error);
     }
     return _cachedNodes;
   }
 
   getAllEdges(): StoreEdge[] {
+    if (_cachedEdges.length === 0) {
+      this.loadFullCache().catch(console.error);
+    }
     return _cachedEdges;
   }
 
@@ -347,9 +350,27 @@ export class SupabaseGraphStore implements GraphStore {
 
   // ── Internal helpers ──
 
-  /** 캐시 로드 — 앱 시작 시 1회 호출 */
+  /** 캐시 로드 — 앱 시작 시 1회 호출
+   *  Vercel serverless: 전체 로드는 타임아웃 위험 → 연결 확인만 하고 캐시는 lazy */
   async loadCache(): Promise<void> {
     if (_cacheLoaded) return;
+    try {
+      // 연결 확인용 최소 쿼리 (1 row) — 전체 캐시 로드 대신
+      const probe = await supabaseRest<DbNode[]>('graph_nodes', {
+        query: 'limit=1&select=id',
+      });
+      // 연결 성공 → 캐시는 lazy로 (getAllNodes 호출 시)
+      _cacheLoaded = true;
+      console.log(`[SupabaseGraphStore] connection verified (probe: ${probe.length} rows). Cache will load lazily.`);
+    } catch (err) {
+      console.error('[SupabaseGraphStore] connection probe failed:', (err as Error).message);
+      throw err; // init에서 InMemory fallback 유도
+    }
+  }
+
+  /** 전체 캐시 로드 — getAllNodes/getAllEdges에서 필요할 때만 */
+  private async loadFullCache(): Promise<void> {
+    if (_cachedNodes.length > 0) return;
     try {
       const [nodes, edges] = await Promise.all([
         supabaseRest<DbNode[]>('graph_nodes', {
@@ -361,10 +382,9 @@ export class SupabaseGraphStore implements GraphStore {
       ]);
       _cachedNodes = nodes.map(dbToStoreNode);
       _cachedEdges = edges.map(dbToStoreEdge);
-      _cacheLoaded = true;
-      console.log(`[SupabaseGraphStore] cache loaded: ${_cachedNodes.length} nodes, ${_cachedEdges.length} edges`);
+      console.log(`[SupabaseGraphStore] full cache loaded: ${_cachedNodes.length} nodes, ${_cachedEdges.length} edges`);
     } catch (err) {
-      console.error('[SupabaseGraphStore] cache load failed:', (err as Error).message);
+      console.error('[SupabaseGraphStore] full cache load failed:', (err as Error).message);
     }
   }
 

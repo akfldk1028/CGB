@@ -7,8 +7,11 @@ export async function GET(request: Request) {
   const search = !!(process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_CX);
   const memgraph = !!(process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD);
 
-  let graph: 'memgraph' | 'file' | 'memory' = 'memory';
-  if (memgraph) graph = 'memgraph';
+  const supabaseGraph = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  let graph: 'supabase' | 'memgraph' | 'file' | 'memory' = 'memory';
+  if (supabaseGraph) graph = 'supabase';
+  else if (memgraph) graph = 'memgraph';
   else {
     try {
       const fs = await import('fs/promises');
