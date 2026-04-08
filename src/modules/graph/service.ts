@@ -49,9 +49,15 @@ export async function addNode(
     case 'Idea':
       node = createIdeaNode(params as CreateIdeaParams);
       break;
-    case 'Concept':
-      node = createConceptNode(params as CreateConceptParams);
+    case 'Concept': {
+      // BrainClient sends { title, description } but createConceptNode expects { name, description }
+      const cp = params as CreateConceptParams & { title?: string; id?: string };
+      if (!cp.name && cp.title) cp.name = cp.title;
+      node = createConceptNode(cp);
+      // Preserve caller-provided ID (BrainClient sends deterministic concept IDs)
+      if (cp.id) node.id = cp.id;
       break;
+    }
     case 'Session':
       node = createSessionNode(params as CreateSessionParams);
       break;
