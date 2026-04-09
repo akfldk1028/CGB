@@ -53,6 +53,8 @@ export interface ListOptions {
   domain?: string;
   layer?: number;
   limit?: number;
+  /** Filter by JSONB metadata fields: { "key": "value" } → metadata->>key=eq.value */
+  metadata?: Record<string, string>;
 }
 
 export interface SearchOptions {
@@ -61,6 +63,8 @@ export interface SearchOptions {
   domain?: string;
   layer?: number;
   type?: string;
+  /** Filter by JSONB metadata fields: { "key": "value" } → metadata->>key=eq.value */
+  metadata?: Record<string, string>;
 }
 
 export interface StoreStats {

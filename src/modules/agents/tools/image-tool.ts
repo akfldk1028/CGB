@@ -18,10 +18,16 @@ export const imageAnalysisTool: AgentTool = {
   parameters: {
     imageUrl: { type: 'string', description: 'URL of the image to analyze (http:// or data: URI)' },
     context: { type: 'string', description: 'Topic/domain context for relevance (optional)' },
+    domain: { type: 'string', description: 'Domain name for graph placement (optional, e.g. "creative", "novel")' },
+    agentId: { type: 'string', description: 'Agent ID for attribution (optional)' },
+    domainNodeId: { type: 'string', description: 'Domain node ID to link via BELONGS_TO (optional)' },
   },
   execute: async (params) => {
     const imageUrl = params.imageUrl as string;
     const context = params.context as string | undefined;
+    const domain = params.domain as string | undefined;
+    const agentId = params.agentId as string | undefined;
+    const domainNodeId = params.domainNodeId as string | undefined;
 
     if (!imageUrl) {
       return { error: 'imageUrl is required' };
@@ -29,7 +35,11 @@ export const imageAnalysisTool: AgentTool = {
 
     try {
       const analysis = await analyzeImage(imageUrl, context);
-      const sceneGraph = extractSceneGraph(analysis, imageUrl);
+      const sceneGraph = extractSceneGraph(analysis, imageUrl, {
+        domain,
+        agentId,
+        domainNodeId,
+      });
 
       return {
         analysis: {

@@ -19,6 +19,14 @@ export async function GET(request: Request) {
   const nodeId = searchParams.get('nodeId');
   const hops = parseInt(searchParams.get('hops') ?? '2', 10);
   const limit = parseInt(searchParams.get('limit') ?? '20', 10);
+  // metadata filter: ?meta.type=evaluation&meta.seriesId=xxx
+  const metadata: Record<string, string> = {};
+  for (const [key, value] of searchParams.entries()) {
+    if (key.startsWith('meta.')) {
+      metadata[key.slice(5)] = value;
+    }
+  }
+  const hasMetadata = Object.keys(metadata).length > 0 ? metadata : undefined;
 
   if (nodeId) {
     const result = await getNeighborhood(nodeId, hops, limit);
@@ -27,6 +35,6 @@ export async function GET(request: Request) {
 
   if (!q) return fail('VALIDATION', 'q (query) or nodeId parameter required');
 
-  const results = await searchGraph(q, { type, agentId, domain, layer, limit });
+  const results = await searchGraph(q, { type, agentId, domain, layer, limit, metadata: hasMetadata });
   return ok({ query: q, results, total: results.length }, { tier: auth.tier });
 }

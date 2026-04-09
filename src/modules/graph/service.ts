@@ -65,9 +65,18 @@ export async function addNode(
       throw new Error(`Unknown node type: ${type}`);
   }
 
-  // v2: BrainClient에서 전달하는 agent_id, domain, layer 반영
+  // v2: BrainClient에서 전달하는 agent_id, domain, layer, metadata 반영
   const p = params as unknown as Record<string, unknown>;
   const store = await getStore();
+  // Merge caller metadata with node metadata
+  const callerMeta = (p.metadata as Record<string, unknown>) ?? {};
+  const mergedMeta: Record<string, unknown> = {
+    ...(node.metadata ?? {}),
+    ...callerMeta,
+  };
+  if (p.contentDomain) mergedMeta.contentDomain = p.contentDomain;
+  if (p.postId) mergedMeta.postId = p.postId;
+
   await store.addNode({
     id: node.id,
     type: node.type,
@@ -79,10 +88,7 @@ export async function addNode(
     agentId: (p.agent_id as string) ?? undefined,
     domain: (p.domain as string) ?? undefined,
     layer: (p.layer as number) ?? 2,
-    metadata: {
-      contentDomain: (p.contentDomain as string) ?? undefined,
-      postId: (p.postId as string) ?? undefined,
-    },
+    metadata: mergedMeta,
   });
 
   // Novelty score (Luo 2022 Knowledge Distance) — 비동기
@@ -118,6 +124,7 @@ export async function listNodes(options?: {
   domain?: string;
   layer?: number;
   limit?: number;
+  metadata?: Record<string, string>;
 }): Promise<GraphNode[]> {
   const results = await (await getStore()).listNodes({
     type: options?.type,
@@ -125,6 +132,7 @@ export async function listNodes(options?: {
     domain: options?.domain,
     layer: options?.layer,
     limit: options?.limit ?? 100,
+    metadata: options?.metadata,
   });
   return results.map(storeNodeToGraphNode);
 }
@@ -181,7 +189,7 @@ export async function listEdges(options?: {
 
 export async function searchGraph(
   query: string,
-  options?: { type?: string; agentId?: string; domain?: string; layer?: number; limit?: number }
+  options?: { type?: string; agentId?: string; domain?: string; layer?: number; limit?: number; metadata?: Record<string, string> }
 ): Promise<GraphNode[]> {
   const results = await (await getStore()).search(query, {
     limit: options?.limit ?? 20,
@@ -189,6 +197,7 @@ export async function searchGraph(
     domain: options?.domain,
     layer: options?.layer,
     type: options?.type,
+    metadata: options?.metadata,
   });
   return results.map(storeNodeToGraphNode);
 }

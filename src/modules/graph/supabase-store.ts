@@ -173,6 +173,12 @@ export class SupabaseGraphStore implements GraphStore {
     if (options?.domain) filters.push(`domain=eq.${options.domain}`);
     if (options?.layer !== undefined) filters.push(`layer=lte.${options.layer}`);
     if (options?.userId) filters.push(`metadata->>userId=eq.${options.userId}`);
+    // JSONB metadata filter: { "type": "evaluation" } → metadata->>type=eq.evaluation
+    if (options?.metadata) {
+      for (const [key, value] of Object.entries(options.metadata)) {
+        filters.push(`metadata->>${encodeURIComponent(key)}=eq.${encodeURIComponent(value)}`);
+      }
+    }
 
     const query = `${filters.join('&')}&order=created_at.desc&limit=${limit}&select=id,agent_id,domain,layer,type,title,description,score,metadata,created_at,expired_at`;
 
@@ -260,6 +266,11 @@ export class SupabaseGraphStore implements GraphStore {
     if (options?.agentId) filters.push(`agent_id=eq.${options.agentId}`);
     if (options?.domain) filters.push(`domain=eq.${options.domain}`);
     if (options?.type) filters.push(`type=eq.${options.type}`);
+    if (options?.metadata) {
+      for (const [key, value] of Object.entries(options.metadata)) {
+        filters.push(`metadata->>${encodeURIComponent(key)}=eq.${encodeURIComponent(value)}`);
+      }
+    }
 
     // PostgREST full-text search
     const ftsQuery = query.split(/\s+/).filter(Boolean).join(' & ');

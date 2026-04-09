@@ -19,6 +19,14 @@ export async function GET(request: Request) {
     const domain = searchParams.get('domain') ?? undefined;
     const layer = searchParams.has('layer') ? parseInt(searchParams.get('layer')!, 10) : undefined;
     const limit = parseInt(searchParams.get('limit') ?? '100', 10);
+    // metadata filter: ?meta.type=evaluation&meta.seriesId=xxx
+    const metadata: Record<string, string> = {};
+    for (const [key, value] of searchParams.entries()) {
+      if (key.startsWith('meta.')) {
+        metadata[key.slice(5)] = value;
+      }
+    }
+    const hasMetadata = Object.keys(metadata).length > 0 ? metadata : undefined;
 
     if (id) {
       const node = await getNode(id);
@@ -26,7 +34,7 @@ export async function GET(request: Request) {
       return ok(node, { tier: auth.tier });
     }
 
-    const nodes = await listNodes({ type, agentId, domain, layer, limit });
+    const nodes = await listNodes({ type, agentId, domain, layer, limit, metadata: hasMetadata });
     return ok({ nodes, total: nodes.length }, { tier: auth.tier, remaining: rl.remaining, limit: rl.limit });
   } catch (err) {
     console.error('[GET /graph/nodes] error:', err);
@@ -54,6 +62,7 @@ export async function POST(request: Request) {
       agentId: body.agent_id,
       domain: body.domain,
       layer: body.layer ?? 2,
+      metadata: body.metadata ?? {},
       createdAt: new Date().toISOString(),
     });
     return created(node, { tier: auth.tier });

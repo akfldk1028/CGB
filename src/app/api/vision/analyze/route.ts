@@ -7,7 +7,7 @@ import type { ApiResponse } from '@/types/api';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { imageUrl, context } = body;
+    const { imageUrl, context, domain, agentId, domainNodeId } = body;
 
     if (!imageUrl) {
       return NextResponse.json<ApiResponse>(
@@ -17,7 +17,11 @@ export async function POST(request: Request) {
     }
 
     const analysis = await analyzeImage(imageUrl, context);
-    const sceneGraph = extractSceneGraph(analysis, imageUrl);
+    const sceneGraph = extractSceneGraph(analysis, imageUrl, {
+      domain,
+      agentId,
+      domainNodeId,
+    });
 
     return NextResponse.json<ApiResponse>({
       success: true,

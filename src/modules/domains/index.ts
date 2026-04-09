@@ -12,13 +12,20 @@ import path from 'path';
 import { DomainRegistry } from './registry';
 import { DomainGateway } from './gateway';
 
-let _gateway: DomainGateway | null = null;
+let _gatewayPromise: Promise<DomainGateway> | null = null;
 
-export async function getGateway(): Promise<DomainGateway> {
-  if (_gateway) return _gateway;
-  const root = path.resolve(process.cwd(), 'domains');
-  const registry = new DomainRegistry(root);
-  await registry.loadAll();
-  _gateway = new DomainGateway(registry);
-  return _gateway;
+export function getGateway(): Promise<DomainGateway> {
+  if (!_gatewayPromise) {
+    _gatewayPromise = (async () => {
+      const root = path.resolve(process.cwd(), 'domains');
+      const registry = new DomainRegistry(root);
+      await registry.loadAll();
+      return new DomainGateway(registry);
+    })();
+  }
+  return _gatewayPromise;
+}
+
+export function invalidateGateway(): void {
+  _gatewayPromise = null;
 }
