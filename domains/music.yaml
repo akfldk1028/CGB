@@ -1,0 +1,118 @@
+# CGB Music Domain — 음악 작곡/분석 특화
+inherits: _base
+
+domain:
+  id: music
+  name: Music Composition
+  description: "작곡 + 화성 분석 + 편곡 + 장르 탐색"
+  tagline: "Harmony meets creativity"
+
+node_types:
+  Chord:
+    level: 2
+    description: "화음 — 구성음/기능/텐션"
+    color: "#f472b6"
+    icon: music
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: root
+        type: string
+      - name: quality
+        type: string
+        enum: [major, minor, diminished, augmented, dominant, suspended]
+      - name: function
+        type: string
+        enum: [tonic, subdominant, dominant, passing, borrowed]
+
+  Melody:
+    level: 2
+    description: "선율 — 음역/리듬/감정"
+    color: "#c084fc"
+    icon: music-2
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: range
+        type: string
+      - name: mood
+        type: string
+      - name: key
+        type: string
+      - name: tempo_bpm
+        type: number
+
+  Rhythm:
+    level: 2
+    description: "리듬 패턴 — 박자/그루브/강약"
+    color: "#fbbf24"
+    icon: activity
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: timeSignature
+        type: string
+      - name: genre
+        type: string
+      - name: feel
+        type: string
+        enum: [straight, swing, shuffle, syncopated, polyrhythmic]
+
+  Section:
+    level: 1
+    description: "곡 구조 단위 — 인트로/벌스/코러스/브릿지"
+    color: "#6ee7b7"
+    icon: layers
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: sectionType
+        type: string
+        enum: [intro, verse, chorus, bridge, outro, interlude, breakdown]
+      - name: bars
+        type: number
+      - name: energy
+        type: number
+
+edge_types:
+  HARMONIZES:
+    category: semantic
+    description: "화성적으로 어울림"
+    source: Chord
+    target: Chord
+  MODULATES:
+    category: semantic
+    description: "전조 — 키 변환"
+    source: Section
+    target: Section
+  RESOLVES_TO:
+    category: semantic
+    description: "화성 해결 (V→I)"
+    source: Chord
+    target: Chord
+  ACCOMPANIES:
+    category: structural
+    description: "선율에 화음 반주"
+    source: Chord
+    target: Melody
+  DRIVES:
+    category: structural
+    description: "리듬이 섹션을 추진"
+    source: Rhythm
+    target: Section
+  TRANSITIONS_TO:
+    category: structural
+    description: "섹션 간 전환"
+    source: Section
+    target: Section
+
+generation_methods:
+  - chord_progression
+  - melody_generation
+  - rhythm_pattern
+  - arrangement
+  - genre_fusion

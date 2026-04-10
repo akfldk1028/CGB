@@ -1,0 +1,138 @@
+# CGB Novel Domain — 소설/스토리텔링 특화
+# Papers: Long Story KG (2025), ICIDS 2025 Hierarchical Narrative Graph
+inherits: _base
+
+domain:
+  id: novel
+  name: Novel & Storytelling
+  description: "소설 창작 + 캐릭터 개발 + 서사 구조 분석"
+  tagline: "Stories build worlds"
+
+node_types:
+  Character:
+    level: 1
+    description: "등장인물 — 성격/외모/역할/관계"
+    color: "#e879f9"
+    icon: user
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: role
+        type: string
+        enum: [protagonist, antagonist, supporting, minor]
+      - name: personality
+        type: string
+      - name: appearance
+        type: string
+      - name: age
+        type: string
+      - name: seriesId
+        type: string
+
+  PlotPoint:
+    level: 2
+    description: "서사 전환점 — 위기/반전/클라이맥스"
+    color: "#fb923c"
+    icon: zap
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: description
+        type: string
+        required: true
+      - name: plotType
+        type: string
+        enum: [inciting_incident, rising_action, climax, falling_action, resolution, twist]
+      - name: chapter
+        type: number
+
+  Chapter:
+    level: 2
+    description: "챕터/에피소드 단위"
+    color: "#38bdf8"
+    icon: file-text
+    properties:
+      - name: title
+        type: string
+        required: true
+      - name: chapterNumber
+        type: number
+        required: true
+      - name: wordCount
+        type: number
+      - name: sentiment
+        type: string
+
+  WorldElement:
+    level: 1
+    description: "세계관 요소 — 지명/마법체계/규칙"
+    color: "#34d399"
+    icon: globe
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: elementType
+        type: string
+        enum: [location, magic_system, faction, rule, artifact, creature]
+      - name: description
+        type: string
+
+edge_types:
+  # Character edges
+  DEVELOPS_CHARACTER:
+    category: creation
+    description: "이 장면이 캐릭터를 발전시킴"
+    source: Chapter
+    target: Character
+  RELATES_TO:
+    category: semantic
+    description: "캐릭터 간 관계 (우호/적대/가족)"
+  FORESHADOWS:
+    category: semantic
+    description: "복선 — 나중 사건을 암시"
+    source: PlotPoint
+    target: PlotPoint
+  FOLLOWS:
+    category: structural
+    description: "챕터 순서"
+    source: Chapter
+    target: Chapter
+  TAKES_PLACE_IN:
+    category: structural
+    description: "사건이 발생하는 장소"
+    source: PlotPoint
+    target: WorldElement
+  INHABITS:
+    category: structural
+    description: "캐릭터가 속한 세계 요소"
+    source: Character
+    target: WorldElement
+
+generation_methods:
+  - outline_generation
+  - character_creation
+  - chapter_planning
+  - chapter_writing
+  - evaluation_feedback
+  - text_ingestion
+
+agent_roles:
+  - role: outliner
+    name: Story Outliner
+    theory: "Three-Act Structure + Hero's Journey"
+    tools: [brainstorm, graph_search, graph_add_node]
+  - role: planner
+    name: Chapter Planner
+    theory: "Beat Sheet / Scene-Sequel"
+    tools: [brainstorm, graph_search, graph_add_node, graph_add_edge]
+  - role: writer
+    name: Story Writer
+    theory: "Show Don't Tell + Chekhov's Gun"
+    tools: [graph_search, graph_add_node]
+  - role: evaluator
+    name: Story Evaluator
+    theory: "SCORE + IMPACT critique"
+    tools: [evaluate_idea, measure_novelty]

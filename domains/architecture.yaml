@@ -1,0 +1,88 @@
+# CGB Architecture Domain — 건축/공간 설계 특화
+inherits: _base
+
+domain:
+  id: architecture
+  name: Architecture & Space Design
+  description: "건축 설계 + 공간 분석 + 구조 최적화"
+  tagline: "Space shapes behavior"
+
+node_types:
+  Building:
+    level: 1
+    description: "건축물 — 형태/용도/시대"
+    color: "#94a3b8"
+    icon: building
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: buildingType
+        type: string
+        enum: [residential, commercial, cultural, industrial, mixed]
+      - name: style
+        type: string
+      - name: era
+        type: string
+
+  Material:
+    level: 2
+    description: "건축 재료 — 특성/비용/지속가능성"
+    color: "#a78bfa"
+    icon: box
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: category
+        type: string
+        enum: [structural, cladding, insulation, finishing, sustainable]
+      - name: sustainability
+        type: number
+
+  Space:
+    level: 2
+    description: "공간 단위 — 기능/면적/동선"
+    color: "#67e8f9"
+    icon: layout
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: function
+        type: string
+      - name: area_sqm
+        type: number
+      - name: accessibility
+        type: string
+
+edge_types:
+  SUPPORTS_LOAD:
+    category: structural
+    description: "구조적 하중 지지"
+    source: Material
+    target: Building
+  FLOWS_INTO:
+    category: semantic
+    description: "공간 동선 연결"
+    source: Space
+    target: Space
+  ENCLOSES:
+    category: structural
+    description: "건물이 공간을 포함"
+    source: Building
+    target: Space
+  MADE_OF:
+    category: structural
+    description: "건물의 재료 구성"
+    source: Building
+    target: Material
+  INSPIRED_BY_STYLE:
+    category: creation
+    description: "건축 양식 영감"
+
+generation_methods:
+  - spatial_analysis
+  - material_selection
+  - structural_optimization
+  - style_exploration
