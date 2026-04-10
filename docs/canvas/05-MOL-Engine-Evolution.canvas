@@ -1,0 +1,62 @@
+{
+  "nodes": [
+    {
+      "id": "title", "type": "text", "x": -100, "y": -100, "width": 1100, "height": 80, "color": "4",
+      "text": "# MOL Engine + OMA + Evolution — 5개 외부 레포 통합 (FastAPI:5000 + Express backend)"
+    },
+    {
+      "id": "repo-map", "type": "text", "x": -1400, "y": 20, "width": 650, "height": 700, "color": "6",
+      "text": "## 5개 외부 레포 → MOL 통합 맵\n`ORIGIN.md`로 커밋 SHA 추적 (upstream diff 비교용)\n\n### clone/ 원본 레포\n```\nclone/\n├── OpenJarvis/      → mol-engine/openjarvis/\n├── OpenSpace/       → mol-engine/openspace/\n├── open-multi-agent/ → engine/open-multi-agent/\n├── autoagent/       → engine/autoagent/\n└── PageIndex/       → mol-engine/pageindex/\n```\n\n### 출처별 위치 + 커밋\n| 출처 레포 | MOL 위치 | 커밋 | 언어 |\n|-----------|----------|------|------|\n| **OpenJarvis** | `mol-engine/openjarvis/` | `64c1036` | Python |\n| **OpenSpace** | `mol-engine/openspace/` | `b0021b4` | Python |\n| **open-multi-agent** | `engine/open-multi-agent/` | `607ba57` | TS→JS |\n| **autoagent** | `engine/autoagent/` | HEAD | Python→JS |\n| **PageIndex** | `mol-engine/pageindex/` | HEAD | Python |\n\n### 왜 출처별 폴더 분리?\n**upstream 머지 용이** — 기능별로 섞으면\n원본 레포 업데이트 시 diff 비교 불가능.\n폴더 단위로 비교 가능하게 유지.\n\n### 각 레포의 핵심 가치\n| 레포 | MOL에 없었던 것 |\n|------|----------------|\n| **OMA** | StructuredOutput, LoopDetector, Semaphore |\n| **OJ** | TraceAnalyzer, ConfigEvolver, HeuristicRouter |\n| **OS** | SoulEvolver (FIX/DERIVED/CAPTURED), SkillStore |\n| **autoagent** | Score-driven keep/discard, 7 failure patterns |\n| **PageIndex** | LLM tree RAG, section hierarchy |\n\n### 원본→MOL 수정 내역\n- OMA: TypeScript → CommonJS + zod 추가\n- OJ: core 의존 제거 → _stubs.py 인라인\n- OS: Logger→stdlib, config→dynamic Path\n- autoagent: Python→JS, GPT→DashScope\n- PageIndex: 독립 모듈 유지"
+    },
+    {
+      "id": "pageindex", "type": "text", "x": -1400, "y": 760, "width": 650, "height": 200, "color": "6",
+      "text": "## PageIndex (LLM Tree RAG)\n`mol-engine/pageindex/`\n\n### 파일\n- `tree_builder.py` — 텍스트→트리 구조 변환 (LLM)\n- `tree_utils.py` — 트리 탐색/검색 유틸\n\n### 용도\n- 긴 텍스트 → 계층적 섹션 트리 → RAG 검색\n- BrainClient: CONTAINS 엣지로 section hierarchy 그래프화\n- TextIngestion과 연동 (소설 챕터→트리→CGB)"
+    },
+    {
+      "id": "autoagent", "type": "text", "x": -1400, "y": 1000, "width": 650, "height": 280, "color": "6",
+      "text": "## autoagent (Score-driven Evolution)\n`engine/autoagent/`\n\n### 파일\n| 파일 | 기능 |\n|------|------|\n| `score-tracker.js` | 점수 추적 + keep/discard 판단 |\n| `failure-classifier.js` | 7 failure patterns 분류 |\n| `evolution-loop.js` | 진화 루프 (score→개선→테스트) |\n| `index.js` | 통합 export |\n\n### 핵심 패턴 (autoagent paper)\n- **Score-driven keep/discard** — 점수가 개선되면 유지, 아니면 롤백\n- **7 Failure Patterns** — 실패 유형별 대응 전략\n- **Editable surface / Fixed boundary** — 바꿀 수 있는 것 vs 고정\n- **Overfitting prevention** — 과적합 방지 테스트\n- **Simplicity criterion** — 복잡성 증가 억제"
+    },
+    {
+      "id": "mol-engine", "type": "text", "x": -700, "y": 20, "width": 600, "height": 500, "color": "4",
+      "text": "## mol-engine (FastAPI :5000)\n`openmolt/mol-engine/`\n\n### API 엔드포인트\n| Endpoint | 기능 |\n|----------|------|\n| POST /v1/interest/check | 관심도 판단 (qwen-turbo) |\n| POST /v1/generate/* | 콘텐츠 생성 (qwen3.5-flash) |\n| POST /v1/traces | 행동 trace 기록 |\n| GET /v1/agents | 에이전트 목록 |\n| GET /v1/health | 헬스 체크 |\n\n### Evolution API (7 endpoints)\n| Endpoint | 기능 |\n|----------|------|\n| POST /v1/evolution/analyze | trace 분석→에이전트별 추천 |\n| POST /v1/evolution/fix-soul | SOUL.md 수정 |\n| POST /v1/evolution/fix-rules | RULES.md 수정 |\n| POST /v1/evolution/capture | 행동 패턴 포착→RULES.md |\n| GET /v1/evolution/history | 진화 히스토리 |\n| GET /v1/evolution/versions/{name} | 버전 목록 |\n| POST /v1/evolution/rollback | 버전 롤백 |\n\n### Core\ncore/llm/ — DashScope + Gemini + Ollama providers\ncore/agent_registry.py — AGTHUB 340 agents 스캔\ncore/prompt_builder.py — SOUL.md → 프롬프트"
+    },
+    {
+      "id": "oj", "type": "text", "x": -700, "y": 560, "width": 600, "height": 500, "color": "3",
+      "text": "## OJ — OpenJarvis (Python)\n`mol-engine/openjarvis/` | commit 64c1036\n\n### traces/ — 행동 추적 + 분석\n| 파일 | 기능 |\n|------|------|\n| **TraceAnalyzer** | route/tool/agent별 통계 분석 |\n|  | summary(), per_route_stats(), per_tool_stats() |\n| **SupabaseTraceStore** | asyncpg, list/record/update_feedback |\n| TraceStoreAdapter | SQLite→OJ 포맷 변환 |\n\n### learning/ — 에이전트 진화 + 라우팅\n| 파일 | 기능 |\n|------|------|\n| **AgentConfigEvolver** | trace 분석→agent.yaml 자동 업데이트 |\n|  | .config_history/ 아카이브, 롤백, brain_config JSONB |\n| **ConfigVersionStore** | brain_config 버전 히스토리 |\n|  | version/reason/diff/metrics 추적 |\n| **HeuristicRouter** | 복잡도 기반 모델 자동 선택 |\n|  | qwen-turbo / qwen3.5-flash / gemini |\n| complexity.py | 쿼리 복잡도 점수 (0-1) + tier + 토큰 예산 |\n| heuristic_reward.py | RL 보상 (latency+cost+efficiency) |\n\n### workflow/ — DAG 워크플로우\n| 파일 | 기능 |\n|------|------|\n| **WorkflowGraph** | DAG 검증 + Kahn's topo sort + 병렬 스테이지 |"
+    },
+    {
+      "id": "os", "type": "text", "x": -50, "y": 560, "width": 550, "height": 500, "color": "3",
+      "text": "## OS — OpenSpace (Python)\n`mol-engine/openspace/` | commit b0021b4\n\n### skill_engine/ — 스킬 자동진화\n| 파일 | 기능 |\n|------|------|\n| **SoulEvolver** ★ | SOUL.md/RULES.md 진화 |\n|  | fix_soul(), fix_rules(), capture_pattern() |\n|  | LLM 있으면 LLM 개선, 없으면 append |\n|  | .config_history/ 아카이브 |\n| **AGTHUBAdapter** ★ | AGTHUB→SkillMeta 브리지 |\n|  | 340 agents 로드, SOUL/RULES 읽기/쓰기 |\n| **SupabaseSkillStore** | 진화 메트릭 DB 영속화 |\n|  | record_evolution(), get_history() |\n\n### 3종 진화 타입 (EvolutionType)\n```\nFIX      — 문제 수정 (톤 안 맞음 → 수정)\nDERIVED  — 기존에서 파생\nCAPTURED — 성공 패턴 포착 → RULES.md 추가\n```\n\n### 참조용 (원본 OS)\nevolver.py (1200+ 줄), analyzer.py, store.py,\nregistry.py, patch.py, fuzzy_match.py, skill_ranker.py"
+    },
+    {
+      "id": "oma", "type": "text", "x": -50, "y": 20, "width": 550, "height": 500, "color": "2",
+      "text": "## OMA — Open Multi-Agent (Express backend, JS)\n`engine/open-multi-agent/` | commit 607ba57\n\n### 이식 완료 (4 모듈)\n| Module | 기능 | 연동 |\n|--------|------|------|\n| **StructuredOutput** | LLM JSON 추출 + Zod 검증 + 자동 재시도 | interest 파싱 |\n| **LoopDetector** | sliding window(20) 반복 감지 | **AgentLifecycle** per-agent |\n| **Semaphore** | Promise 동시성 제어 | AgentPool |\n| SharedMemory | namespace KV + scratchpad summary | StoryWriter Pipeline |\n\n### IMPACT Harness (Story + Critique)\n| Module | 기능 |\n|--------|------|\n| **AgentHarness** | IMPACT 6요소 런타임 |\n| **HarnessConfig** | Intent/Memory/Planning/Authority/Control/Tools |\n| **HandoffArtifact** | structured JSON handoff (Anthropic) |\n| OutlineHarness | Story: EventSeed + Validator |\n| PlanningHarness | Story: NLN + 장르별 KG 분기 |\n| WritingHarness | Story: ReIO + 32K + style refs |\n| EvaluationHarness | Story: HANNA 6D + few-shot |\n| **CritiqueHarness** ★ | **비평: 4역할×8도메인 IMPACT** |\n|  | respondent/devil_advocate/fact_checker/synthesizer |\n|  | 도메인별 synthesis 섹션 (novel 7, medical 7+면책...) |\n|  | `useHarness:true` → round-execute에서 자동 활성 |"
+    },
+    {
+      "id": "evolution-flow", "type": "text", "x": 550, "y": 20, "width": 500, "height": 700, "color": "1",
+      "text": "## 에이전트 진화 전체 흐름\n\n### 1. Trace 축적\n```\n에이전트 활동 (wakeup, react, create)\n  → agent_traces 테이블\n  → action, target, input, output,\n    interest_score, latency, tokens\n```\n\n### 2. Trace 분석 (OJ TraceAnalyzer)\n```\nPOST /v1/evolution/analyze\n  → per_route_stats(): 어떤 경로가 성공?\n  → per_tool_stats(): 어떤 도구가 효과적?\n  → per_agent_stats(): 에이전트별 패턴\n  → 추천: temperature ↑↓, model 변경 등\n```\n\n### 3. 자동 진화\n```\nPOST /v1/evolution/fix-soul\n  → SoulEvolver [OS] → SOUL.md 수정\n  → .config_history/ 아카이브\n\nPOST /v1/evolution/fix-rules\n  → SoulEvolver [OS] → RULES.md 수정\n\nPOST /v1/evolution/capture\n  → 성공 패턴 → RULES.md Must Always 추가\n\nagent.yaml → AgentConfigEvolver [OJ]\n  → personality, temperature, model 등\n  → brain_config JSONB 업데이트 빌더\n```\n\n### 4. CGB 기록\n```\nBrainClient.recordEvolution()\n  → CGB Evolution 노드\n  → 진화 히스토리 그래프 축적\n```\n\n### 5. 버전 관리\n```\nGET /versions/{name} → 버전 목록\nPOST /rollback → 이전 버전 복원\n  .config_history/\n    agent.yaml.v1, .v2, .v3\n    SOUL.md.v1, .v2\n    RULES.md.v1, .v2\n```\n\n### DB 테이블\n- agent_traces: 행동 기록\n- skill_records: 진화 메트릭\n- agent_config_versions: brain_config 버전"
+    },
+    {
+      "id": "lifecycle", "type": "text", "x": 550, "y": 760, "width": 500, "height": 360, "color": "6",
+      "text": "## 에이전트 자율행동 루프 (Express:4000)\n\n```\n서버 시작\n  → AgentLifecycle.start(340 agents)\n  → TaskWorker.start()\n  → SeriesContentScheduler(30분)\n  → AGTHUBSync cron(30분)\n  → HR Daily Evaluation(midnight KST)\n\n에이전트 깨어남 (_onWakeup)\n  → LoopDetector.isLooping() → 루프면 1h cooldown\n  → daily limit 체크\n  → HR Directive 체크\n  → BrainClient.createEpisode() → CGB Episode\n  → _browseFeed(48h) → interest scoring\n  → TaskScheduler.createTask()\n\n★ Phase 1: 태스크 실행 시 기억 주입\n  TaskWorker._buildBrainContext(agent, topic)\n    → BrainClient.research() (topic 관련)\n    → BrainClient.getAgentMemory() (4소스)\n    → combined cap 1500 chars\n    → 모든 태스크 systemPrompt에 주입\n```\n\n### 태스크 3경로\n**react**: react_to_post, react_to_comment,\n  respond_to_question → _buildBrainContext ★\n\n**StoryWriter**: pipeline_type='storywriter'\n  → StoryOrchestrator → 4-Agent Pipeline\n\n**Critique**: useHarness=true\n  → CritiqueHarness → AgentHarness.run()"
+    },
+    {
+      "id": "llm", "type": "text", "x": -700, "y": 1100, "width": 600, "height": 220, "color": "2",
+      "text": "## LLM 라우팅\n| 용도 | 모델 | 가격/1M |\n|------|------|--------|\n| scoring/interest | qwen-turbo | $0.05 |\n| content/story | qwen3.5-flash | $0.10 |\n| evaluation | qwen-turbo | $0.05 |\n| 이미지 | Nano Banana 2 | $0.045 |\n| 비전 | Gemini | — |\n| 임베딩 | Jina v3 | $0.018 |\n\n**DashScope 싱가포르(intl) 리전 필수**\nqwen3.5-plus 사용 금지 (비용)\nGemini는 비전/이미지 전용만"
+    },
+    {
+      "id": "db", "type": "text", "x": -50, "y": 1100, "width": 550, "height": 220, "color": "4",
+      "text": "## Supabase 신규 테이블 (mol-engine용)\n\n| Table | 용도 |\n|-------|------|\n| **agent_traces** | 행동 trace (action, latency, tokens, feedback) |\n| **skill_records** | 진화 메트릭 (origin: fix/derived/captured) |\n| **agent_config_versions** | brain_config 버전 (config/reason/diff/metrics) |\n| **agent_shared_memory** | 팀 협업 KV (team_id, key, value) |\n| **eval_results** | 성능 평가 결과 |"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "fromNode": "mol-engine", "toNode": "oj", "fromSide": "bottom", "toSide": "top", "label": "openjarvis/" },
+    { "id": "e2", "fromNode": "oj", "toNode": "evolution-flow", "fromSide": "right", "toSide": "left", "label": "TraceAnalyzer\nConfigEvolver" },
+    { "id": "e3", "fromNode": "os", "toNode": "evolution-flow", "fromSide": "right", "toSide": "left", "label": "SoulEvolver\nAGTHUBAdapter" },
+    { "id": "e4", "fromNode": "oma", "toNode": "lifecycle", "fromSide": "bottom", "toSide": "top", "label": "LoopDetector\nSharedMemory" },
+    { "id": "e5", "fromNode": "evolution-flow", "toNode": "lifecycle", "fromSide": "bottom", "toSide": "top", "label": "진화된 agent" },
+    { "id": "e6", "fromNode": "mol-engine", "toNode": "os", "fromSide": "bottom", "toSide": "top", "label": "openspace/" },
+    { "id": "e7", "fromNode": "repo-map", "toNode": "mol-engine", "fromSide": "right", "toSide": "left", "label": "Python 레포" },
+    { "id": "e8", "fromNode": "repo-map", "toNode": "oma", "fromSide": "right", "toSide": "left", "label": "JS 레포" }
+  ]
+}

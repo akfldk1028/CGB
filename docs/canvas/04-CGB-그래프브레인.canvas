@@ -1,0 +1,78 @@
+{
+  "nodes": [
+    {
+      "id": "title", "type": "text", "x": -100, "y": -100, "width": 1100, "height": 80, "color": "1",
+      "text": "# CGB — Creative Graph Brain (Next.js 15 + Supabase pgvector)"
+    },
+    {
+      "id": "stats", "type": "text", "x": -100, "y": 20, "width": 1100, "height": 100, "color": "4",
+      "text": "## 실측 (2026-04-09)\n**40K+ nodes / 109K+ edges** | Jina v3 768d 임베딩 100% | 8 노드타입 | 34 엣지타입\ncosine + BM25 + BFS → RRF 3중검색 | Vercel 배포 (cgb-brain-lemon.vercel.app)"
+    },
+    {
+      "id": "hierarchy", "type": "text", "x": -700, "y": 170, "width": 600, "height": 650, "color": "1",
+      "text": "## 4계층 노드 온톨로지\n학술 근거: Csikszentmihalyi(1996) / Barrios(2020) / Geneplore(1992) / Rhodes(1961)\n\n### Level 0: Domain #3b82f6\nCsikszentmihalyi \"Domain\" — 규칙·관습·지식체계\nprops: name*, description*, parentDomainId, keywords[]\n예: Healthcare, Fintech, Novel Writing, Architecture\n\n### Level 1: Topic #8b5cf6\n도메인 안의 구체적 주제/문제\nprops: title*, description*, domainId*, problemStatement, targetAudience\n예: AI 금융 비서, 판타지 소설 세계관\n\n### Level 2: Idea #ffd700 ★ 핵심 단위\nGeneplore \"pre-inventive structure\"\nprops: title*, description*, topicId*, generationMethod*(20종),\n  authorAgent*, parentIdeaId, maturityStage(raw→validated),\n  phase(immersion|inspiration|isolation|iteration), tags[]\nscores: domainRelevance, creativeThinking, intrinsicMotivation, overall\nvalidation: individual, domain, field, approved\n\n### Level 3: Artifact #10b981\nRhodes 4P's \"Product\"\nprops: title*, description*, ideaId*,\n  artifactType(narrative|prototype|business_model|paper|code|design)\n  narrative: { structure: hero_journey|three_act, content }\n\n```\nDomain → BELONGS_TO ← Topic\n  → ADDRESSES_TOPIC ← Idea\n    → PRODUCES → Artifact\n```"
+    },
+    {
+      "id": "aux-nodes", "type": "text", "x": -700, "y": 870, "width": 600, "height": 400, "color": "1",
+      "text": "## 보조 노드 5종\n\n### Concept #4fc3f7\n재사용 핵심 개념 (여러 Idea에서 공유)\nCsikszentmihalyi \"symbols & conventions\"\nprops: name*, description*, domainIds[], references[]\n\n### Session #f97316\n창의 세션 기록\n4I's 단계별 진행 추적\nprops: topicId*, status(active|completed|failed), agents[]\nphases: immersion/inspiration/isolation/iteration\n\n### Agent #22c55e\n에이전트 자체도 노드 (Rhodes 4P's \"Person\")\nprops: role*, name*, theory, totalIdeasGenerated, toolsUsed[]\n\n### DecisionTrace #ef4444\n에이전트 사고과정 (CCG episodic memory)\n1 agent run = 1 trace\nprops: agentRole*, goal*, summary, stepCount, toolsUsed[], duration\n\n### TraceStep #f87171\nDecisionTrace 내 개별 단계\nobserve → think → act\nprops: stepIndex*, thought*, toolUsed, traceId"
+    },
+    {
+      "id": "edges-creation", "type": "text", "x": -50, "y": 170, "width": 450, "height": 320, "color": "1",
+      "text": "## Creation 엣지 (7종) #ff6b6b\n\"어떻게 만들어졌나\" (Provenance)\n\n| Edge | 의미 |\n|------|------|\n| INSPIRED_BY | ~에서 영감 |\n| ITERATED_FROM | ~의 변주 (4I's) |\n| COMBINED_FROM | 두 아이디어 결합 |\n| SCAMPER_OF | SCAMPER 적용 결과 |\n| DERIVED_FROM | 일반 파생 |\n| GENERATED_BY | Agent→Idea |\n| RESEARCHED_FROM | 웹 검색 발견 |\n\n```\nIdea ──INSPIRED_BY──→ Idea\n  │──SCAMPER_OF──→ Idea\n  └──GENERATED_BY──→ Agent\n```"
+    },
+    {
+      "id": "edges-semantic", "type": "text", "x": -50, "y": 530, "width": 450, "height": 280, "color": "1",
+      "text": "## Semantic 엣지 (7종) #4ecdc4\n\"아이디어 간 의미 구조\" (Barrios 2020)\n\n| Edge | 의미 |\n|------|------|\n| CONTRADICTS | 반대/모순 |\n| SUPPORTS | 뒷받침/강화 |\n| CAUSES | 인과 (A→B) |\n| SIMILAR_TO | 유사 (자동 생성 포함) |\n| ALTERNATIVE_TO | 대안 (같은 문제, 다른 접근) |\n| PREREQUISITE_OF | 선행 조건 |\n| EXTENDS | 확장 |"
+    },
+    {
+      "id": "edges-structural", "type": "text", "x": -50, "y": 850, "width": 450, "height": 420, "color": "1",
+      "text": "## Structural 엣지 (14종) #95a5a6\n\"계층/소속/분류\" (온톨로지 골격)\n\n### 기본 구조\nPART_OF / GENERALIZES / SPECIALIZES\nBELONGS_TO / PRODUCED_IN\nUSES_CONCEPT / ADDRESSES_TOPIC / PRODUCES\n\n### Reasoning Trace\nHAS_TRACE (Session→DecisionTrace)\nHAS_STEP (DecisionTrace→TraceStep)\nEXECUTED (Agent→DecisionTrace)\n\n### Agent 관계 (6종 추가)\n```\nAgent ──GENERATED_BY←── Idea\nAgent ──EXECUTED──→ DecisionTrace\nSession ──HAS_TRACE──→ DecisionTrace\nDecisionTrace ──HAS_STEP──→ TraceStep\nIdea ──PRODUCED_IN──→ Session\nIdea ──USES_CONCEPT──→ Concept\n```\n\n**총 34종**: Creation(7) + Semantic(7) + Structural(14) + Agent(6)"
+    },
+    {
+      "id": "search", "type": "text", "x": 450, "y": 170, "width": 550, "height": 350, "color": "4",
+      "text": "## 3중 검색 + RRF (SupabaseGraphStore)\n\n### 검색 파이프라인\n```\nQuery\n  ├─ Jina v3 embed(768d) → Cosine similarity (pgvector)\n  ├─ tsvector → BM25 full-text (PostgREST wfts)\n  └─ Recursive CTE → BFS graph walk\n  → RRF 합산 (graph_hybrid_search RPC)\n  → Top K results\n```\n\n### DB 물리 스키마\n```sql\ngraph_nodes:\n  id, agent_id, domain, layer(0-2), type, title,\n  description, embedding vec(768), score, metadata(JSONB),\n  fts(tsvector), created_at, expired_at\n\ngraph_edges:\n  id, source_id, target_id, type, weight,\n  metadata(JSONB), created_at, expired_at,\n  valid_from, valid_until  -- 4-timestamp versioning\n```\n\n### 3-Layer\nL0 Global (Domain) / L1 Domain (Topic, Session) / L2 Agent (Idea, Artifact)"
+    },
+    {
+      "id": "algorithms", "type": "text", "x": 450, "y": 560, "width": 550, "height": 300, "color": "4",
+      "text": "## Graph Algorithms (Pure TypeScript)\n\n### PageRank (Page, Brin 1999)\nPower iteration, damping=0.85, 20 iterations\n→ 가장 영향력 있는 Idea/Concept 식별\n\n### Louvain Community Detection (Blondel 2008)\nModularity 최적화, Phase 1 (local moving)\n→ 관련 아이디어 클러스터 자동 발견\n\n### Jaccard Similarity\nJaccard(A,B) = |N(A)∩N(B)| / |N(A)∪N(B)|\n→ 유사 노드 발견, 중복 감지, 융합 후보\n\n### Knowledge Distance (Luo 2022 KBS)\nBFS 최단경로 → 참신성 점수\n>70: 교차도메인 (진정한 창의)\n<30: 파생적 (정당화 필요)\n→ Idea.score 필드에 자동 기록"
+    },
+    {
+      "id": "agents-6", "type": "text", "x": 450, "y": 900, "width": 550, "height": 370, "color": "3",
+      "text": "## CGB 자율 에이전트 (6 Roles)\n4I's Pipeline: Immersion→Inspiration→Isolation→Iteration\n\n| Role | 이론 | 단계 | 핵심 도구 |\n|------|------|------|----------|\n| **Creative Director** | 4I's Orchestration | 전체 | search, evaluate, novelty |\n| **Researcher** | Csikszentmihalyi+Agent Ideate | Immersion | keywords→web→graph→save |\n| **Divergent Thinker** | Guilford+SCAMPER+TRIZ | Inspiration | brainstorm, scamper, triz, debate |\n| **Evaluator** | Amabile+Agent Ideate 6D | Isolation | evaluate(6차원), novelty |\n| **Field Validator** | Csikszentmihalyi Field | Isolation | web, keywords, novelty |\n| **Iterator** | Geneplore+4I's+TRIZ | Iteration | scamper, triz, novelty |\n\n### 13 Tools\nweb_search, graph_query, graph_add_node, graph_add_edge,\ngraph_search, scamper_transform, evaluate_idea, brainstorm,\nextract_keywords, measure_novelty, triz_principle,\nanalyze_image, multi_model_debate\n\n### 도메인 감지 자동 도구 추가\nTECH_DOMAINS → web_search 추가\nCREATIVE_DOMAINS (art, architecture, music...) → scamper+triz 추가"
+    },
+    {
+      "id": "brain-views", "type": "text", "x": -700, "y": 1310, "width": 600, "height": 250, "color": "3",
+      "text": "## 5 Brain Views\n\"모든 노드는 하나의 그래프. 뇌는 필터/뷰일 뿐\"\n\n| View | 필터 | 용도 |\n|------|------|------|\n| **collective** | 없음 (전체) | 메타 뇌 = \"뇌를 합치는 뇌\" |\n| **domain** | BELONGS_TO BFS | 도메인 서브그래프 (텍스트+이미지 통합) |\n| **user** | metadata.userId | 개인 기여 |\n| **agent** | GENERATED_BY 엣지 | 에이전트별 기여 |\n| **visual** | imageUrl 존재 | VLM 분석 결과 |"
+    },
+    {
+      "id": "agent-memory", "type": "text", "x": -700, "y": 1900, "width": 600, "height": 420, "color": "2",
+      "text": "## 뇌 강화 Phase 0~3 ✅ (2026-04-10)\n\n### Phase 0: 이미지→그래프 domain 연결\nscene-graph.ts → domain/layer/agent + BELONGS_TO/GENERATED_BY\n\n### Phase 1: 에이전트 기억 주입\n`BrainClient.getAgentMemory()` → 5소스 병렬 CGB 조회\n```\n1. Semantic search (topic RRF) → 맥락 관련\n2. Recent agent nodes → 내 최근 5개\n3. Domain-wide ideas → 도메인 우수 아이디어\n4. Domain concepts → 핵심 개념 4개\n5. Peer insights → 동료 에이전트 발견 ★Phase 3\n```\n\n### 포맷 (6 카테고리)\nA. Domain knowledge / B. Your ideas / C. Past experiences\nD. Visual inspirations / E. Topic-relevant / F. **Peer discoveries**\n\n### Phase 2: 역방향 강화 (graph→brain_config)\n```\nHR evaluateAll()\n → getAgentGraphMetrics(domainCache)\n   → conceptDensity, scoreVsDomain, hasCrossDomain\n → applyGraphFeedback(GRAPH_THRESHOLDS)\n   → temp ↑↓ + weights ↑ + maxChangesPerCycle:3\n → recordEvolution (배치 5개씩)\n```\n도메인캐시 공유로 ~450 중복 API 제거\n\n### Phase 3: Cross-Pollination\n- getCrossDomainInsights(): 같은 도메인 다른 에이전트 노드\n- connector archetype → 인접 도메인 peek (다양성 보장)\n- CROSS_REFERENCES 엣지 자동 생성\n\n### Phase 4: 검색 RL (미착수)\nKG-R1 패턴 — 에이전트별 search_weights 학습"
+    },
+    {
+      "id": "events", "type": "text", "x": -700, "y": 1600, "width": 600, "height": 250, "color": "3",
+      "text": "## 이벤트 시스템\n\"에이전트가 24시간 도는 게 아니라, 이벤트가 에이전트를 깨운다\"\n\n### graph_add_node() → emit('node:created')\n1. **handleNodeCreated()** → novelty score 자동 계산\n2. **handleSuggestRelated()** → SIMILAR_TO 자동 연결\n   타이틀 토큰 30% 이상 매치, 상위 3개\n\n### 이벤트 타입\n- `node:created` → novelty + SIMILAR_TO\n- `edge:created` → (확장 가능)\n- `session:completed` → persist + stats"
+    },
+    {
+      "id": "vision", "type": "text", "x": 450, "y": 1680, "width": 550, "height": 420, "color": "2",
+      "text": "## Vision Module — 이미지 → 그래프\n`src/modules/vision/` + `src/app/api/vision/`\n\n### 파이프라인\n```\n이미지 (URL or base64 or File)\n  │\n  ▼\nanalyze.ts — Gemini VLM 멀티모달 분석\n  → { description, concepts[5], objects[],\n      mood, colors[], inspirations[3] }\n  │\n  ▼\nscene-graph.ts — 그래프 노드/엣지 자동 생성\n  → Concept 노드 5개 (method: scene_graph_extract)\n  → Idea 노드 3개 (method: visual_inspiration)\n  → USES_CONCEPT 엣지 (Idea→Concept)\n  → SIMILAR_TO 엣지 (Concept간)\n  → emitNodeCreated() → 자동 novelty + 관련 연결\n```\n\n### API\n| Endpoint | 기능 |\n|----------|------|\n| POST /api/vision/analyze | 이미지 분석 + Scene Graph |\n| POST /api/vision/upload | Vercel Blob 업로드 (5MB max) |\n\n### storage.ts\n- BLOB_READ_WRITE_TOKEN → Vercel Blob (프로덕션)\n- 없으면 → base64 data URI (개발용)\n- fetchImageAsBase64() — 외부 URL 다운로드\n\n### 에이전트 도구\n`analyze_image` — Researcher + Divergent Thinker 보유\nBrain View `visual` — imageUrl 있는 노드만 필터\n\n### 논문 근거\n- Visual World Models (Wu 2026)\n- VLM + Scene Graph (Lohner 2024)\n- AI Agent KG Construction (Peshevski 2025)"
+    },
+    {
+      "id": "domains-yaml", "type": "text", "x": -50, "y": 1310, "width": 450, "height": 540, "color": "6",
+      "text": "## CGB 도메인 시스템 (2-Track)\n\n### Track A: 온톨로지 (YAML 상속)\n```\ndomains/\n├── _base.yaml     ★ 공통 (9노드+21엣지+20기법)\n├── creativity.yaml (기본, agent_roles 5종)\n├── novel.yaml     ★ Character+PlotPoint+Chapter\n│   +WorldElement, FORESHADOWS, DEVELOPS_CHARACTER\n├── architecture.yaml ★ Building+Material+Space\n│   SUPPORTS_LOAD, FLOWS_INTO, ENCLOSES\n├── music.yaml     ★ Chord+Melody+Rhythm+Section\n│   HARMONIZES, MODULATES, RESOLVES_TO\n├── korean-law/    외부 MCP (법제처 39 API)\n└── _template/     새 도메인 생성용\n```\n\n### Track B: 외부 MCP (DomainRegistry)\n```\nDomainConfig:\n├── connection: http, url, timeout\n├── sub_domains: auto\n├── pricing: tool_tier\n├── keys: central_env + BYOK\n└── graph: default_layer, promote_threshold,\n           auto_concepts\n\nPOST /v1/domains/:id/call\n  → DomainGateway → MCP 서버\n  → GraphSink → graph_nodes/edges 자동 저장\n```\n\n### 확장 완료 (2026-04-10)\nnovel + architecture + music 3개 도메인 YAML 추가"
+    },
+    {
+      "id": "generation", "type": "text", "x": 450, "y": 1310, "width": 550, "height": 340, "color": "6",
+      "text": "## 20종 Generation Methods\n\n### Guilford (확산/수렴)\ndivergent_brainstorm, convergent_selection\n\n### SCAMPER (7기법)\nsubstitute, combine, adapt, modify,\nput_to_other_use, eliminate, rearrange\n\n### Other Creative\nrole_storming, mind_mapping,\niteration_semantic, iteration_structural\n\n### External Sources\nweb_research, graph_traversal,\nhuman_input, agent_autonomous,\nvisual_inspiration, scene_graph_extract,\nmulti_model_debate\n\n**핵심 원칙**: \"Ideas compound forever\"\n그래프 노드는 영원히 삭제하지 않음 (expire만)"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "fromNode": "hierarchy", "toNode": "edges-creation", "fromSide": "right", "toSide": "left" },
+    { "id": "e2", "fromNode": "edges-creation", "toNode": "edges-semantic", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e3", "fromNode": "edges-semantic", "toNode": "edges-structural", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e4", "fromNode": "hierarchy", "toNode": "aux-nodes", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e5", "fromNode": "search", "toNode": "algorithms", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e6", "fromNode": "algorithms", "toNode": "agents-6", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e7", "fromNode": "agents-6", "toNode": "generation", "fromSide": "bottom", "toSide": "top" },
+    { "id": "e8", "fromNode": "vision", "toNode": "hierarchy", "fromSide": "top", "toSide": "bottom", "label": "Concept+Idea\n노드 생성" }
+  ]
+}

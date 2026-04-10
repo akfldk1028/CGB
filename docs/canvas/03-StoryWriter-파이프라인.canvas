@@ -1,0 +1,65 @@
+{
+  "nodes": [
+    {
+      "id": "title", "type": "text", "x": -100, "y": -100, "width": 1100, "height": 80, "color": "2",
+      "text": "# StoryWriter 4-Agent Pipeline + IMPACT Harness + CGB RL"
+    },
+    {
+      "id": "overview", "type": "text", "x": -100, "y": 20, "width": 1100, "height": 180, "color": "4",
+      "text": "## 전체 흐름\n```\nPOST /api/v1/story/generate { seriesId, agentId }\n  → StoryOrchestrator (genre, ko, 3000w)\n  → BrainClient.research() → CGB 컨텍스트\n  → [Outline] → [Planning] → RL feedback 조회\n  → [Writing ← Eval loop (max 2회)] → DB + CGB 저장\n```\n**논문**: StoryWriter(CIKM 2025), Anthropic 3-agent(2026), SCORE(2025), Long Story KG(2025), IMPACT(swyx 2025)"
+    },
+    {
+      "id": "harness", "type": "text", "x": -700, "y": 250, "width": 550, "height": 550, "color": "3",
+      "text": "## IMPACT Harness 프레임워크\n`engine/harness/` (swyx AI Engineer Summit 2025)\n\n### 6요소 (HarnessConfig.js)\n```\nI — Intent    : goal, successCriteria, failureCriteria\nM — Memory    : readKeys, writeKeys, injectSummary, getContext()\nP — Planning  : stages[], maxIterations\nA — Authority : maxTokens, maxRetries, timeoutMs, validate()\nC — Control   : onSuccess, onFailure, shouldContinue()\nT — Tools     : llmProvider, llmModel, useCGB, cgbAPIs[]\n```\n\n### AgentHarness.js (런타임)\n```\nfor (iteration ≤ maxIterations):\n  1. _buildPrompt() — Memory 주입 + 이전 실패 피드백\n  2. _buildSystemPrompt() — Intent + Role\n  3. LLM 호출 — Promise.race(llm, timeout)\n  4. Authority.validate() — 출력 검증\n  5. Control.shouldContinue() — 계속 여부\n  6. _createHandoff() — transform + SharedMemory 저장\n```\n\n### HandoffArtifact.js (Anthropic 패턴)\n```\n{ type, fromAgent, toAgent, data, metadata }\n  → SharedMemory 저장 (key: handoff:{type})\n  → 다음 Agent가 readKeys로 읽음\n```"
+    },
+    {
+      "id": "outline", "type": "text", "x": -100, "y": 250, "width": 550, "height": 500, "color": "2",
+      "text": "## Stage 1: OutlineHarness\n**EventSeed → EventValidator** (max 3 iterations)\n\n### IMPACT 설정\n- **Intent**: 8-12 events, 2+ plot twists, 완전한 서사 아크\n- **Memory**: readKeys=[] (첫 Agent), CGB research context\n- **Planning**: maxIterations=3\n- **Authority**: 8192 tokens, 90s timeout\n  - validate: event 3개 이상 + 중국어 오염 체크\n- **Tools**: qwen3.5-flash, CGB brainstorm+search\n- **Handoff**: `outline` → events JSON + characters + relationships\n\n### 출력 구조\n```json\n{ events: [\n    { id, title, setting, characters,\n      action, conflict, plotTwist }\n  ],\n  characters: [\n    { name, role, traits, goals }\n  ],\n  relationships: [\n    { from, to, type, description }\n  ]\n}\n```\n\n### 프롬프트 구조 (buildOutlinePrompt)\n- Plot Structure: Setup(1-2) → Rising(3-5) → Complications(6-8) → Crisis(9-10) → Climax(11-12)\n- 캐릭터 시트 강제: 이름/나이/직업/결함/숨겨진 욕망/외형\n- 한국어 규칙: 중국어·일본어 절대 금지, 한국 이름·배경"
+    },
+    {
+      "id": "planning", "type": "text", "x": 500, "y": 250, "width": 550, "height": 440, "color": "2",
+      "text": "## Stage 2: PlanningHarness\n**SubTasker → Weaver** (NLN 비선형 내러티브)\n\n### IMPACT 설정\n- **Intent**: events→sub-events, 비선형 배치 (Genette)\n- **Memory**: readKeys=['outliner/handoff:outline']\n- **Planning**: maxIterations=2\n- **Authority**: 8192 tokens, 90s timeout\n- **Tools**: qwen3.5-flash\n\n### 장르별 KG 분기 (KG-Guided Storytelling paper)\n```\nfantasy, sci-fi, action, mystery → KG intensity: HIGH\n  → useCGB: true, brainstorm + search\n\nromance, literary, slice-of-life → KG intensity: LOW\n  → useCGB: false, 감정 곡선 중심\n```\n\n### NLN (Non-Linear Narration, Genette 이론)\n- analepsis (플래시백) + prolepsis (플래시포워드)\n- 여러 이벤트 라인을 한 챕터에 인터리빙\n- 각 챕터 cliffhanger 필수\n\n### Handoff\n```json\n{ chapters: [\n    { number, title, subEvents, characters,\n      dramaticPurpose, cliffhanger }\n  ]\n}\n```"
+    },
+    {
+      "id": "writing", "type": "text", "x": -100, "y": 800, "width": 600, "height": 600, "color": "1",
+      "text": "## Stage 3: WritingHarness ★ (가장 복잡)\n**Coordinator → FinalWriter → ReIO**\n\n### IMPACT 설정\n- **Intent**: 최소 3000 단어 (목표 3600), cliffhanger 종료\n  - 장르별 분기: romance→감정 텐션 / fantasy→세계관 묘사\n- **Memory**: readKeys=['planner/chapter_plan', 'outliner/outline']\n  - getContext():\n    1. StoryStateTracker.getSummary() ← SCORE paper\n    2. 이전 3개 에피소드 long-term memory\n    3. CGB 스타일 참조 (genre+nodeRole 필터)\n- **Planning**: stages=['compress_history','write','reio_check'], max=3\n- **Authority**: **32768 tokens**, 300s timeout (5분)\n  - validate: Korean wordCount ≥ 60% target\n    (한국어: charCount/2.5), 중국어 오염 체크\n- **Tools**: qwen3.5-flash, CGB search+evaluate\n\n### 히스토리 압축 (StoryWriter paper)\n```\n이전 챕터 → compressChapter()\n  head 300chars + [... compressed ...] + tail 300chars\n  = sliding window [2, k-1]\n```\n\n### RL Feedback 주입\n```\n이전 에피소드 평가에서 배운 교훈:\n  ✅ 잘한 점 (유지하세요) → goodPatterns[:3]\n  ⛔ 피해야 할 점 → antiPatterns[:3]\n```\n\n### 캐릭터 일관성 (핸드오프 수정)\n- outline 전문 삽입 → \"Use EXACTLY these character names\"\n- character_sheet + world_setting 주입\n\n### Handoff: `writer/chapter_N` → text"
+    },
+    {
+      "id": "evaluation", "type": "text", "x": 550, "y": 800, "width": 550, "height": 520, "color": "1",
+      "text": "## Stage 4: EvaluationHarness\n**독립 품질 평가** (Anthropic: \"work ≠ judge 분리\")\n\n### IMPACT 설정\n- **Intent**: HANNA 6차원 1-5 평가 + 구체적 피드백\n- **Memory**: readKeys=['writer/chapter_*', 'outliner/outline', 'planner/plan']\n- **Planning**: maxIterations=1 (단일 패스)\n- **Authority**: 4096 tokens, 60s timeout\n- **Tools**: **qwen-turbo** (저비용 — 평가는 간단)\n\n### HANNA 6차원 평가\n```\n1. Relevance    — 아웃라인 준수도\n2. Coherence    — 플롯 논리·일관성\n3. Empathy      — 캐릭터 감정 연결\n4. Surprise     — 의외성 (논리적 반전)\n5. Creativity   — 독창성·상상력\n6. Complexity   — 다층적 내러티브\n```\n\n### Calibration (few-shot)\n- 5점: 출판 수준 + 감각 묘사 + 복잡한 캐릭터\n- 4점: 매력적 + 약간의 거친 부분\n- 3점: AI 느낌, 공식적 패턴\n- 2점: 플롯 홀, 평면 캐릭터\n- 1점: 비일관, 주제 이탈\n\n### Pass/Fail\n```\noverallScore ≥ 3.5 → PASS → 완료\noverallScore < 3.5 → FAIL → Stage 3 재실행\n  feedback + weaknesses → WritingHarness 주입\n  max 2 retries\n```\n\n### 한국어 추가 기준\n- 자연스러운 한국어 문체 (번역체 X)\n- 한국어 구어체 대화\n- 중국어/일본어 혼재 체크"
+    },
+    {
+      "id": "rl-loop", "type": "text", "x": -100, "y": 1450, "width": 600, "height": 400, "color": "3",
+      "text": "## RL 피드백 루프 (CGB 기반)\n\n### Write → Eval → Rewrite Loop\n```\nWriting(attempt 1) → Evaluation\n  passed? → 완료\n  failed? → feedback 주입 → Writing(attempt 2) → Evaluation\n    failed? → feedback 주입 → Writing(attempt 3) → 강제 완료\n```\n\n### CGB RL 축적 (BrainClient)\n\n**에피소드 생성 후:**\n1. `addEpisodeToGraph()` → Idea 노드 (L1)\n   - CAUSES → 이전 에피소드 (순차 체인)\n   - metadata: seriesId, pipelineType\n2. `recordEvaluation()` → Idea 노드 (eval)\n   - 6차원 점수 + feedback\n   - metadata: { type: evaluation, seriesId, patternType }\n   - score ≥ 4.0 → **promote** (L1→L0 승격)\n\n**다음 에피소드 생성 시:**\n3. `getEvalHistory()` → metadata 기반 과거 평가 조회\n   - goodPatterns: 잘한 점 (재사용)\n   - antiPatterns: 피할 점 (회피)\n   - avgScore: 평균 (추세)\n4. WritingHarness에 RL context 주입\n\n### Prompt-Level RL (Legacy 경로)\n비평 댓글 수집 → _distillFeedback() → 5-axis 스코어\n→ 다음 에피소드 시스템 프롬프트에 directives 주입"
+    },
+    {
+      "id": "novel-graph", "type": "text", "x": 550, "y": 1450, "width": 550, "height": 400, "color": "1",
+      "text": "## CGB 소설 도메인 그래프 (BrainClient)\n\n### initSeriesGraph() — 시리즈 초기화\n```\n[Domain] Novel Writing (L0)\n  └─ BELONGS_TO ←─ [Topic] 시리즈 제목 (L1)\n       ├─ [Character] 강서연 (L1)\n       ├─ [Character] 박민준 (L1)\n       └─ [Character] 이하은 (L1)\n       + character 간 RELATED_TO 엣지\n```\n\n### addEpisodeToGraph() — 에피소드 추가\n```\n[Topic] 시리즈\n  └─ PART_OF ←─ [Idea=Episode] ep1\n       ├─ CAUSES → ep2 → ep3 (순차 체인)\n       ├─ USES_CONCEPT → [Character] 강서연\n       └─ GENERATED_BY ← [Agent] cadence\n```\n\n### recordEvaluation() — 평가 축적\n```\n[Episode] ep1\n  └─ EVALUATED_BY ←─ [Idea=Eval] 4.2/5\n       metadata: { scores, feedback,\n         goodPatterns, antiPatterns }\n```\n\n### 검색 (WritingHarness 활용)\n- `getStoryKG()` — 시리즈 관련 KG\n- `suggestTwist()` — KG 반전 제안 (CGB brainstorm, temp 0.9)\n- `checkCoherence()` — 에피소드 vs 아웃라인\n- `getGenrePatterns()` — 장르별 패턴\n\n### Jina v3 768d 임베딩 → cosine+BM25+BFS→RRF"
+    },
+    {
+      "id": "ingestion", "type": "text", "x": -100, "y": 1900, "width": 1100, "height": 350, "color": "6",
+      "text": "## TextIngestion — 소설 텍본 학습\n`services/story/TextIngestionService.js`\n\n### 흐름\n```\nPOST /api/v1/story/ingest { text, title, author, genre, category, agentId }\n  → domainId = source-${hash(title|author)} (결정적 ID, dedup)\n  → _splitChapters() → 챕터 분리\n     Chapter N / 제N장 / ### / 3000단어 청크\n  → 챕터별 병렬 (Promise.allSettled, concurrency 3):\n```\n\n### 노드 생성 (챕터당 6종)\n| 노드 | nodeRole | 내용 |\n|------|----------|------|\n| Domain | source | 작품 메타 (title, author, genre, category) |\n| Idea | summary | 챕터 요약 |\n| Idea | style | 명문장 추출 |\n| Idea | dialogue | 좋은 대화 추출 |\n| Concept | concept | LLM 키워드/개념 추출 |\n| Idea | style-analysis | LLM 문체 분석 |\n\n모든 노드 metadata: `{ genre, category, nodeRole, source, sourceTitle, sourceAuthor }`\n`skipSimilarSearch: true` — 인제스션 시 SIMILAR_TO + extractConcepts 스킵 (노드당 ~6 API 절약)\n\n### Level 2 스타일 참조 (WritingHarness에서 활용)\n```\ngetBrainContext('romance style 명문장 대화 문체')\n  → metadata.genre 필터 + metadata.nodeRole 필터\n  → 장르 맞는 스타일 노드만 → 프롬프트에 주입\n```"
+    },
+    {
+      "id": "state-tracker", "type": "text", "x": -700, "y": 800, "width": 550, "height": 300, "color": "4",
+      "text": "## StoryStateTracker (SCORE paper)\n`services/story/StoryStateTracker.js`\n\n### Markov 상태 추적\n- 캐릭터별 상태 (위치, 감정, 관계 변화)\n- 에피소드별 감정 곡선 일관성 체크\n- 테마 drift 감지\n\n### getSummary() → WritingHarness 주입\n```\n캐릭터 현재 상태:\n  서연: 강남 카페, 혼란+기대\n  민준: 서연 몰래 프로젝트 진행\n감정 곡선: 상승→하강→전환점\n```"
+    },
+    {
+      "id": "brain-memory", "type": "text", "x": -700, "y": 1150, "width": 550, "height": 350, "color": "3",
+      "text": "## Phase 1: 에이전트 기억 주입 ✅\n\n### 일반 활동에도 CGB 뇌 적용\n```\nTaskWorker._buildBrainContext(agent, topic)\n  → BrainClient.research(topic)  // 주제 검색\n  → BrainClient.getAgentMemory() // 4소스\n    1) Semantic search (topic RRF)\n    2) Recent agent nodes (최근 5개)\n    3) Domain-wide ideas (우수 아이디어)\n    4) Domain concepts (핵심 개념)\n  → combined cap 1500 chars\n```\n\n### 적용 범위\n- react_to_post ✅ (기존 + 강화)\n- react_to_comment ✅ (신규)\n- respond_to_question ✅ (신규)\n- create_episode(StoryWriter) ✅ (기존)\n\n### 포맷 (LLM이 보는 것)\n```\nDomain knowledge: narrative tension...\nYour ideas: Neo-Tokyo (3d ago, q:72)\nPast experiences: wakeup session...\nVisual: Neon cityscape (mood: dystopian)\n```"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "fromNode": "outline", "toNode": "planning", "fromSide": "right", "toSide": "left", "label": "HandoffArtifact\n(outline)" },
+    { "id": "e2", "fromNode": "planning", "toNode": "writing", "fromSide": "bottom", "toSide": "top", "label": "HandoffArtifact\n(chapter_plan)" },
+    { "id": "e3", "fromNode": "writing", "toNode": "evaluation", "fromSide": "right", "toSide": "left", "label": "HandoffArtifact\n(episode)" },
+    { "id": "e4", "fromNode": "evaluation", "toNode": "writing", "fromSide": "left", "toSide": "right", "label": "FAIL→rewrite\n(feedback)" },
+    { "id": "e5", "fromNode": "evaluation", "toNode": "rl-loop", "fromSide": "bottom", "toSide": "top", "label": "PASS→CGB" },
+    { "id": "e6", "fromNode": "rl-loop", "toNode": "novel-graph", "fromSide": "right", "toSide": "left", "label": "그래프 축적" },
+    { "id": "e7", "fromNode": "novel-graph", "toNode": "outline", "fromSide": "top", "toSide": "bottom", "label": "다음 에피소드\nBrainClient.research()" },
+    { "id": "e8", "fromNode": "harness", "toNode": "outline", "fromSide": "right", "toSide": "left", "label": "IMPACT 적용" },
+    { "id": "e9", "fromNode": "state-tracker", "toNode": "writing", "fromSide": "right", "toSide": "left", "label": "상태 주입" },
+    { "id": "e10", "fromNode": "ingestion", "toNode": "novel-graph", "fromSide": "top", "toSide": "bottom", "label": "스타일 노드" },
+    { "id": "e11", "fromNode": "rl-loop", "toNode": "writing", "fromSide": "left", "toSide": "bottom", "label": "RL feedback\n(goodPatterns\nantiPatterns)" }
+  ]
+}

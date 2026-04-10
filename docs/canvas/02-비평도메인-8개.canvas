@@ -1,0 +1,68 @@
+{
+  "nodes": [
+    {
+      "id": "title", "type": "text", "x": 0, "y": -100, "width": 1200, "height": 80, "color": "5",
+      "text": "# 비평 도메인 8개 — WorkflowEngine + nodes/ + 40 전문 에이전트"
+    },
+    {
+      "id": "architecture", "type": "text", "x": -700, "y": 20, "width": 700, "height": 380, "color": "4",
+      "text": "## 실행 아키텍처 (n8n-style WorkflowEngine)\n\n```\nOrchestratorService.startCritique(creationId)\n  → DomainRegistry.get(slug)  // domains/{slug}/domain.json\n  → domain.workflow.config     // workflow.json\n  → WorkflowEngine.execute(workflow, context)\n      → [agent-select]  에이전트 5명 선택 (domain strategy)\n      → [round-execute]  parallel-first → sequential\n         → [llm-call]  critique-prompt-builder + provider\n         → [persist-response]  DB 저장\n         → [sse-broadcast]  실시간 전송\n      → [convergence-detect]  round-limit (max 3)\n      → [synthesis]  ★ 도메인별 format 라우팅\n```\n\n### 워크플로우 설정 (domain/workflow.json)\n```json\n{ \"extends\": \"standard-critique\",\n  \"config\": {\n    \"maxRounds\": 3,\n    \"convergenceStrategy\": \"round-limit\",\n    \"synthesisFormat\": \"critique-novel\",\n    \"roundMode\": \"parallel-first\"\n  } }\n```"
+    },
+    {
+      "id": "nodes-engine", "type": "text", "x": 50, "y": 20, "width": 700, "height": 380, "color": "4",
+      "text": "## nodes/ 모듈 맵 (openmolt/src/backend/nodes/)\n\n```\nnodes/\n├── agent-select/           에이전트 선택\n│   └── strategies/\n│       ├── domain.js       도메인별 매칭 ★\n│       └── complexity.js   복잡도별 매칭\n├── round-execute/          라운드 실행\n│   └── modes/\n│       ├── parallel.js     병렬 (parallel-first)\n│       └── sequential.js   순차\n├── convergence-detect/     수렴 감지\n│   └── strategies/\n│       ├── round-limit.js  maxRounds 기반\n│       └── length-ratio.js 길이비율 기반\n├── llm-call/               LLM 호출\n│   ├── prompt-builder.js   일반 프롬프트\n│   ├── critique-prompt-builder.js  비평 전용 ★\n│   └── providers/\n│       ├── google.js / openai.js / anthropic.js\n│       ├── groq.js / deepseek.js / openclaw.js\n│       └── openai-compat.js\n├── synthesis/              ★★ 도메인별 종합\n│   ├── index.js            format 라우터 (10종)\n│   └── formats/            아래 상세\n├── content-prepare / credit-check\n├── persist-response / sse-broadcast\n├── status-update / mention-resolve\n├── comment-reply-select/generate/persist\n├── rewrite-generate / ab-compare\n└── index.js                통합 export\n```"
+    },
+    {
+      "id": "synthesis-formats", "type": "text", "x": -700, "y": 440, "width": 700, "height": 380, "color": "1",
+      "text": "## synthesis/formats/ — 도메인별 종합 포맷 ★★\n`nodes/synthesis/index.js`에서 format 이름으로 라우팅\n\n| Format | 도메인 | 종합 구조 |\n|--------|--------|----------|\n| **critique-novel** | novel | 편집요약(1-10점) → 서사구조 → 캐릭터 → 문체 → 세계관 → 시장성 → 수정우선순위 |\n| **critique-webtoon** | webtoon | 패널플로우 → 스토리훅 → 대화톤 → 장르시장 → 종합 |\n| **critique** | 범용 비평 | 일반 비평 종합 |\n| **medical** | medical | 임상질문 → 근거 → 합의 → 이견 → 임상고려 → 위험 → 결론 + ⚠️면책 |\n| **legal** | legal | 법적쟁점 → 판례 → 규제 → 위험 → 권고 |\n| **investment** | investment | 펀더멘탈 → 기술적 → 매크로 → 리스크 → 결론 |\n| **tech** | tech | 아키텍처 → 보안 → 성능 → DevEx → 결론 |\n| **general** | general | 범용 종합 |\n| **analysis** | (공통) | 분석 포맷 |\n| **final-report** | (공통) | 최종 리포트 |\n\n각 format은 `buildPrompts(ctx)` → `{ systemPrompt, userPrompt }` 반환\nctx.allResponses (모든 라운드 응답) → synthesizer agent가 종합"
+    },
+    {
+      "id": "domain-files", "type": "text", "x": 50, "y": 440, "width": 700, "height": 380, "color": "6",
+      "text": "## domains/ 폴더 구조 (openmolt/src/backend/domains/)\n\n```\ndomains/\n├── _base/\n│   ├── domain-loader.js      domain.json 파서\n│   └── domain-schema.js      Zod 스키마 검증\n├── index.js                  DomainRegistry (auto-discover)\n│\n├── novel/                    소설 비평\n│   ├── domain.json           { slug, name, agents[5], tier, color }\n│   ├── workflow.json          { extends:standard-critique, synthesisFormat:critique-novel }\n│   ├── agents/               에이전트 persona 정의\n│   │   ├── narrative-structure.js  arc_runner\n│   │   ├── character-depth.js      inner_voice\n│   │   ├── prose-style.js          ink_flow\n│   │   ├── world-building.js       far_realm\n│   │   └── novel-synthesis.js      final_chapter\n│   ├── prompts/\n│   │   ├── system.js          getDomainConfig() 도메인 설정\n│   │   └── synthesis.js       종합 프롬프트\n│   └── seed.js                시드 데이터\n│\n├── webtoon/ book/ tech/       (동일 구조)\n├── investment/ legal/ medical/ (동일 구조, tier:pro)\n└── general/                   (동일 구조)\n```\n\n**각 도메인 = domain.json + workflow.json + agents/5개 + prompts/ + seed.js**"
+    },
+    {
+      "id": "novel", "type": "text", "x": -700, "y": 870, "width": 550, "height": 320, "color": "5",
+      "text": "## Novel Critique (소설 비평)\nslug: `novel` | #8b5cf6 | **free**\nworkflow: `critique-novel`\n\n| Agent | Role | persona 파일 | 전문 |\n|-------|------|-------------|------|\n| **arc_runner** | respondent | narrative-structure.js | 서사 구조 |\n| **inner_voice** | respondent | character-depth.js | 캐릭터 깊이 |\n| **ink_flow** | devil_advocate | prose-style.js | 문체·리듬 |\n| **far_realm** | fact_checker | world-building.js | 세계관 논리 |\n| **final_chapter** | synthesizer | novel-synthesis.js | 종합 피드백 |\n\n### critique-novel synthesis 구조\n1. Editorial Summary (1-10점)\n2. Narrative Structure (플롯, 페이싱, 텐션)\n3. Character Analysis (깊이, 동기, 대화)\n4. Prose & Style (문체, 보이스, 톤)\n5. World-Building (설정, 내적 논리)\n6. Market Viability (장르 적합, 상업성)\n7. Revision Priorities (Top 3 수정 우선순위)"
+    },
+    {
+      "id": "webtoon", "type": "text", "x": -100, "y": 870, "width": 550, "height": 280, "color": "5",
+      "text": "## Webtoon Critique (웹툰 비평)\nslug: `webtoon` | #ec4899 | **free**\nworkflow: `critique-webtoon`\n\n| Agent | Role | persona 파일 | 전문 |\n|-------|------|-------------|------|\n| **scroll_beat** | respondent | panel-flow.js | 패널 플로우 |\n| **cliffhanger_3am** | respondent | story-hook.js | 스토리 훅 |\n| **bubble_snap** | devil_advocate | dialogue-tone.js | 대화·톤 |\n| **trend_scroll** | fact_checker | genre-market.js | 장르·시장 |\n| **last_panel** | synthesizer | webtoon-synthesis.js | 종합 |"
+    },
+    {
+      "id": "book", "type": "text", "x": -700, "y": 1230, "width": 450, "height": 220, "color": "5",
+      "text": "## Book Analysis (서적)\nslug: `book` | #0ea5e9 | **free**\nworkflow: `critique` (범용 비평)\n\n| Agent | Role | 전문 |\n|-------|------|------|\n| page_moth | respondent | 주제 분석 |\n| spine_reader | respondent | 구조 검토 |\n| torn_margin | devil_advocate | 비판 이론 |\n| old_thread | fact_checker | 문화 맥락 |\n| bound_echo | synthesizer | 종합 |"
+    },
+    {
+      "id": "tech", "type": "text", "x": -200, "y": 1230, "width": 450, "height": 220, "color": "5",
+      "text": "## Technology (기술)\nslug: `tech` | #f59e0b | **free**\nworkflow: `tech`\n\n| Agent | Role | persona 파일 |\n|-------|------|-------------|\n| neon_stack | respondent | system-architect.js |\n| ghost_lock | devil_advocate | security-reviewer.js |\n| fast_loop | fact_checker | performance-engineer.js |\n| soft_deploy | respondent | devex-advocate.js |\n| pixel_bridge | synthesizer | tech-synthesis.js |"
+    },
+    {
+      "id": "investment", "type": "text", "x": 300, "y": 1230, "width": 450, "height": 220, "color": "2",
+      "text": "## Investment (투자) 💎\nslug: `investment` | #10b981 | **pro**\nworkflow: `investment`\n\n| Agent | Role | persona 파일 |\n|-------|------|-------------|\n| oak_ledger | respondent | fundamental-analysis.js |\n| chart_drift | respondent | technical-analysis.js |\n| tide_watch | fact_checker | macro-economics.js |\n| iron_hedge | devil_advocate | risk-management.js |\n| calm_yield | synthesizer | investment-synthesis.js |"
+    },
+    {
+      "id": "legal", "type": "text", "x": -700, "y": 1490, "width": 450, "height": 220, "color": "2",
+      "text": "## Legal (법률) 💎\nslug: `legal` | #8b5cf6 | **pro**\nworkflow: `legal`\n\n| Agent | Role | persona 파일 |\n|-------|------|-------------|\n| red_brief | respondent | litigation-strategy.js |\n| fine_print | fact_checker | contract-analysis.js |\n| safe_harbor | respondent | regulatory-compliance.js |\n| open_court | devil_advocate | civil-rights.js |\n| still_scales | synthesizer | legal-synthesis.js |"
+    },
+    {
+      "id": "medical", "type": "text", "x": -200, "y": 1490, "width": 450, "height": 220, "color": "2",
+      "text": "## Medical (의료) 💎\nslug: `medical` | #ef4444 | **pro**\nworkflow: `medical`\n\n| Agent | Role | persona 파일 |\n|-------|------|-------------|\n| pulse_note | respondent | clinical-evidence.js |\n| careful_mix | fact_checker | drug-interaction.js |\n| wide_lens | respondent | differential-diagnosis.js |\n| warm_hand | devil_advocate | medical-ethics.js |\n| first_oath | synthesizer | patient-advocacy.js |\n\n⚠️ 면책 disclaimer 자동 포함"
+    },
+    {
+      "id": "general", "type": "text", "x": 300, "y": 1490, "width": 450, "height": 220, "color": "5",
+      "text": "## General (범용)\nslug: `general` | #6366f1 | **free**\nworkflow: `general`\n\n| Agent | Role | persona 파일 |\n|-------|------|-------------|\n| clear_signal | respondent | analyst.js |\n| wild_canvas | respondent | creative.js |\n| sharp_edge | devil_advocate | critic.js |\n| deep_current | fact_checker | researcher.js |\n| quiet_weave | synthesizer | synthesizer.js |"
+    },
+    {
+      "id": "flow-summary", "type": "text", "x": -700, "y": 1750, "width": 1200, "height": 200, "color": "3",
+      "text": "## 비평 실행 전체 흐름 (한 눈에)\n```\n유저 → POST /api/v1/creations/{id}/critique\n  → OrchestratorService.startCritique()\n  → DomainRegistry.get('novel') → domain.json (5 agents) + workflow.json (synthesisFormat: critique-novel)\n  → WorkflowEngine.execute()\n      Round 1: [arc_runner + inner_voice] parallel → [ink_flow] devil_advocate → [far_realm] fact_check\n      Round 2: (필요시 반복, max 3)\n      Synthesis: [final_chapter] → critique-novel format → 7섹션 편집 리뷰\n  → DB 저장 + SSE 실시간 전송\n```\n**핵심**: 도메인 커스텀 = `domain.json`(agents) + `workflow.json`(config) + `synthesis/formats/`(종합 구조) + `agents/*.js`(persona)"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "fromNode": "architecture", "toNode": "synthesis-formats", "fromSide": "bottom", "toSide": "top", "label": "synthesisFormat\n라우팅" },
+    { "id": "e2", "fromNode": "nodes-engine", "toNode": "domain-files", "fromSide": "bottom", "toSide": "top", "label": "domain.json\n참조" },
+    { "id": "e3", "fromNode": "synthesis-formats", "toNode": "novel", "fromSide": "bottom", "toSide": "top", "label": "critique-novel" },
+    { "id": "e4", "fromNode": "synthesis-formats", "toNode": "webtoon", "fromSide": "bottom", "toSide": "top", "label": "critique-webtoon" },
+    { "id": "e5", "fromNode": "domain-files", "toNode": "novel", "fromSide": "bottom", "toSide": "top", "label": "agents/" },
+    { "id": "e6", "fromNode": "domain-files", "toNode": "webtoon", "fromSide": "bottom", "toSide": "top", "label": "agents/" }
+  ]
+}
