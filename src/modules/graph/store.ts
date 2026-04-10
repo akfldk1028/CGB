@@ -167,7 +167,11 @@ export class InMemoryGraphStore implements GraphStore {
 
   async listEdges(options?: ListOptions): Promise<StoreEdge[]> {
     const limit = options?.limit ?? 300;
-    return this.edges.slice(-limit).reverse();
+    let filtered = this.edges;
+    if (options?.type) {
+      filtered = filtered.filter((e) => e.type === options.type);
+    }
+    return filtered.slice(-limit).reverse();
   }
 
   async search(query: string, options?: SearchOptions): Promise<StoreNode[]> {
