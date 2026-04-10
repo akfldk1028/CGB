@@ -132,6 +132,23 @@ export class InMemoryGraphStore implements GraphStore {
     if (options?.userId) {
       filtered = filtered.filter((n) => n.userId === options.userId);
     }
+    if (options?.agentId) {
+      filtered = filtered.filter((n) => n.agentId === options.agentId);
+    }
+    if (options?.domain) {
+      filtered = filtered.filter((n) => n.domain === options.domain);
+    }
+    if (options?.layer !== undefined) {
+      filtered = filtered.filter((n) => (n.layer ?? 2) <= options.layer!);
+    }
+    if (options?.metadata) {
+      for (const [key, value] of Object.entries(options.metadata)) {
+        filtered = filtered.filter((n) => {
+          const meta = n.metadata as Record<string, unknown> | undefined;
+          return meta && String(meta[key]) === value;
+        });
+      }
+    }
 
     return filtered.slice(-limit).reverse();
   }
