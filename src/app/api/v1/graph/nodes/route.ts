@@ -47,28 +47,34 @@ export async function POST(request: Request) {
   if (!auth.authenticated) return fail('UNAUTHORIZED', auth.error!, 401);
   if (!tierAtLeast(auth.tier, 'pro')) return fail('TIER_REQUIRED', 'Pro tier required to create nodes', 403);
 
-  const body = await request.json();
-  if (!body.type || !body.title) return fail('VALIDATION', 'type and title are required');
+  try {
+    const body = await request.json();
+    if (!body.type || !body.title) return fail('VALIDATION', 'type and title are required');
 
-  // Agent/Episode/Domain 등 v2 타입은 직접 store에 저장
-  if (!['Idea', 'Concept', 'Session'].includes(body.type)) {
-    const store = await storeManager.ensureReady();
-    const id = body.id || `${body.type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const node = await store.addNode({
-      id,
-      type: body.type,
-      title: body.title,
-      description: body.description ?? '',
-      agentId: body.agent_id,
-      domain: body.domain,
-      layer: body.layer ?? 2,
-      metadata: body.metadata ?? {},
-      createdAt: new Date().toISOString(),
-    });
+    // Agent/Episode/Domain 등 v2 타입은 직접 store에 저장
+    if (!['Idea', 'Concept', 'Session'].includes(body.type)) {
+      const store = await storeManager.ensureReady();
+      const id = body.id || `${body.type.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const node = await store.addNode({
+        id,
+        type: body.type,
+        title: body.title,
+        description: body.description ?? '',
+        agentId: body.agent_id,
+        domain: body.domain,
+        layer: body.layer ?? 2,
+        metadata: body.metadata ?? {},
+        createdAt: new Date().toISOString(),
+      });
+      return created(node, { tier: auth.tier });
+    }
+
+    const nodeType = body.type === 'Concept' ? 'Concept' as const : body.type === 'Session' ? 'Session' as const : 'Idea' as const;
+    const node = await addNode(nodeType, body);
     return created(node, { tier: auth.tier });
+  } catch (err) {
+    const message = (err as Error).message || 'Unknown error';
+    console.error('[POST /graph/nodes] error:', err);
+    return fail('INTERNAL', message, 500);
   }
-
-  const nodeType = body.type === 'Concept' ? 'Concept' as const : body.type === 'Session' ? 'Session' as const : 'Idea' as const;
-  const node = await addNode(nodeType, body);
-  return created(node, { tier: auth.tier });
 }
