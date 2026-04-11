@@ -1,0 +1,225 @@
+# CGB Negotiation Domain — 에이전트 간 협상 온톨로지
+# Papers: Cicero (Meta FAIR 2022), LLM-Stakeholders (NeurIPS 2024),
+#         Magentic Marketplace (MS 2025), CAMEL (arXiv 2303.17760),
+#         Real-Time Deadlines (arXiv 2601.13206)
+inherits: _base
+
+domain:
+  id: negotiation
+  name: Agent Negotiation
+  description: "에이전트 간 가격/조건 협상, 거래 성사, 합의 도출"
+  tagline: "Every deal is a story"
+
+node_types:
+  Proposal:
+    level: 2
+    description: "협상 제안 — 한 턴의 offer (Cicero dialogue, ANAC offer)"
+    color: "#fbbf24"
+    icon: send
+    properties:
+      - name: from_agent_id
+        type: string
+        required: true
+      - name: to_agent_id
+        type: string
+        required: true
+      - name: session_id
+        type: string
+        required: true
+      - name: round
+        type: number
+        required: true
+      - name: terms
+        type: object
+        required: true
+      - name: rationale
+        type: string
+      - name: message_type
+        type: string
+        enum: [offer, counter_offer, accept, reject, withdraw]
+
+  Deal:
+    level: 2
+    description: "체결된 합의 — 양쪽 accept된 Proposal"
+    color: "#10b981"
+    icon: handshake
+    properties:
+      - name: session_id
+        type: string
+        required: true
+      - name: parties
+        type: string[]
+        required: true
+      - name: final_terms
+        type: object
+        required: true
+      - name: signed_at
+        type: string
+        required: true
+      - name: total_rounds
+        type: number
+
+  UtilityFunction:
+    level: aux
+    description: "에이전트의 private 효용 함수 (상대방 누수 금지)"
+    color: "#a78bfa"
+    icon: calculator
+    properties:
+      - name: agent_id
+        type: string
+        required: true
+      - name: session_id
+        type: string
+        required: true
+      - name: weights
+        type: object
+      - name: batna_score
+        type: number
+      - name: visibility
+        type: string
+        enum: [private]
+        required: true
+
+  Preference:
+    level: aux
+    description: "이슈별 선호도 (price, quantity, deadline 등)"
+    color: "#c084fc"
+    properties:
+      - name: agent_id
+        type: string
+        required: true
+      - name: issue
+        type: string
+        required: true
+      - name: weight
+        type: number
+      - name: flexibility
+        type: number
+
+  Commitment:
+    level: aux
+    description: "협상 중 약속 — LLM amnesia 및 prompt injection 방어"
+    color: "#f472b6"
+    icon: lock
+    properties:
+      - name: session_id
+        type: string
+        required: true
+      - name: made_by
+        type: string
+        required: true
+      - name: content
+        type: string
+        required: true
+      - name: turn
+        type: number
+      - name: binding
+        type: boolean
+      - name: verified
+        type: boolean
+
+edge_types:
+  # Creation (어떻게 만들어졌나)
+  COUNTER_OFFER:
+    category: creation
+    description: "이 제안이 이전 제안에 대한 반대 제안"
+    source: Proposal
+    target: Proposal
+
+  # Structural (체결 구조)
+  ACCEPTED:
+    category: structural
+    description: "수락된 제안이 Deal로 체결"
+    source: Proposal
+    target: Deal
+
+  COMMITS:
+    category: structural
+    description: "제안이 약속을 생성"
+    source: Proposal
+    target: Commitment
+
+  USES_UTILITY:
+    category: structural
+    description: "에이전트가 효용 함수를 사용하여 제안 평가"
+    source: Agent
+    target: UtilityFunction
+
+  HAS_PREFERENCE:
+    category: structural
+    description: "에이전트의 이슈 선호도"
+    source: Agent
+    target: Preference
+
+  # Semantic (관계 의미)
+  REJECTED:
+    category: semantic
+    description: "거부된 제안"
+    source: Agent
+    target: Proposal
+
+  FAILED:
+    category: semantic
+    description: "협상 결렬 (deadline, withdraw, deadlock)"
+
+  BUILDS_ON:
+    category: semantic
+    description: "이 제안이 이전 제안의 가치를 확장"
+    source: Proposal
+    target: Proposal
+
+generation_methods:
+  - offer_generation
+  - counter_offer_generation
+  - accept_decision
+  - reject_decision
+  - withdraw_decision
+  - mediation_proposal
+  - pareto_search
+  - utility_calculation
+
+agent_roles:
+  - role: anchor
+    name: Anchor (Hardliner)
+    theory: "Anchoring bias (Tversky & Kahneman 1974)"
+    tools: [make-offer, check-batna, commitment-ledger]
+
+  - role: weaver
+    name: Weaver (Diplomat)
+    theory: "Interest-based negotiation (Fisher & Ury, Getting to Yes)"
+    tools: [make-offer, evaluate-offer, rapport-signal]
+
+  - role: prism
+    name: Prism (Value Architect)
+    theory: "Integrative bargaining (Walton & McKersie 1965)"
+    tools: [make-offer, package-builder, pareto-checker]
+
+  - role: fulcrum
+    name: Fulcrum (Mediator)
+    theory: "Principled mediation (Fisher & Ury)"
+    tools: [propose-compromise, pareto-checker, check-batna]
+
+  - role: hammer
+    name: Hammer (Closer)
+    theory: "Deadline closing + momentum"
+    tools: [make-offer, deadline-pressure, deal-summary]
+
+  # Role templates — 451 에이전트 중 누구나 빙의
+  - role: negotiator
+    name: Negotiator (Template)
+    theory: "CAMEL Role/Task/Protocol template"
+    tools: [make-offer, evaluate-offer, check-batna, commit]
+
+  - role: mediator
+    name: Mediator (Template)
+    tools: [propose-compromise, pareto-checker]
+
+  - role: observer
+    name: Observer (Template, back-channel)
+    tools: [log-turn]
+
+visualization:
+  edge_colors:
+    creation: "#fbbf24"
+    structural: "#10b981"
+    semantic: "#ef4444"

@@ -1,0 +1,276 @@
+# CGB Data Analysis Domain — 콘텐츠 크리에이터용 데이터 분석 파이프라인
+# Papers: MetaGPT Data Interpreter (arXiv 2402.18679), LIDA (Microsoft),
+#         Vanna 2.0, Data-Copilot (arXiv 2306.07209)
+inherits: _base
+
+domain:
+  id: data-analysis
+  name: Content & Data Analysis
+  description: "YouTube/SNS 크리에이터용 데이터 분석 파이프라인 + 인사이트 추출"
+  tagline: "Data becomes stories"
+
+node_types:
+  DataSource:
+    level: 1
+    description: "분석 대상 데이터 소스 — YouTube 채널, SQL 테이블, CSV, API"
+    color: "#67e8f9"
+    icon: database
+    properties:
+      - name: source_type
+        type: string
+        enum: [youtube, sql, csv, api, user-upload, web]
+        required: true
+      - name: uri
+        type: string
+      - name: schema
+        type: object
+      - name: owner_agent_id
+        type: string
+
+  Goal:
+    level: 1
+    description: "분석 목표 (자연어) — 유저의 원래 의도"
+    color: "#fb923c"
+    icon: target
+    properties:
+      - name: nl_intent
+        type: string
+        required: true
+      - name: user_id
+        type: string
+      - name: constraints
+        type: object
+
+  Plan:
+    level: 2
+    description: "MetaGPT 계층적 DAG 분석 계획 (Hierarchical Graph Modeling)"
+    color: "#8b5cf6"
+    icon: map
+    properties:
+      - name: goal_id
+        type: string
+        required: true
+      - name: subproblems
+        type: object[]
+      - name: dependencies
+        type: object
+      - name: estimated_queries
+        type: number
+
+  Query:
+    level: 2
+    description: "생성된 SQL/pandas/API 코드 (Vanna RAG-over-schema 패턴)"
+    color: "#38bdf8"
+    icon: code
+    properties:
+      - name: plan_id
+        type: string
+        required: true
+      - name: language
+        type: string
+        enum: [sql, pandas, json-path, api-call]
+        required: true
+      - name: code
+        type: string
+        required: true
+      - name: validated
+        type: boolean
+      - name: result_schema
+        type: object
+
+  Hypothesis:
+    level: aux
+    description: "검증 가능한 가설 — 분석으로 테스트"
+    color: "#fde047"
+    icon: lightbulb
+    properties:
+      - name: statement
+        type: string
+        required: true
+      - name: testable
+        type: boolean
+      - name: null_hypothesis
+        type: string
+
+  Analysis:
+    level: 2
+    description: "실행 결과 + 검증 + 이상치"
+    color: "#34d399"
+    icon: trending-up
+    properties:
+      - name: query_id
+        type: string
+        required: true
+      - name: result
+        type: object
+      - name: checks_passed
+        type: string[]
+      - name: anomalies
+        type: object[]
+
+  Visualization:
+    level: 2
+    description: "Vega-Lite 차트 스펙 (LIDA VISGENERATOR 패턴)"
+    color: "#f472b6"
+    icon: bar-chart
+    properties:
+      - name: analysis_id
+        type: string
+        required: true
+      - name: spec
+        type: object
+      - name: chart_type
+        type: string
+        enum: [bar, line, scatter, heatmap, pie, network, sankey]
+      - name: title
+        type: string
+
+  Insight:
+    level: 2
+    description: "최종 인사이트 (LIDA INFOGRAPHER 패턴)"
+    color: "#22c55e"
+    icon: star
+    properties:
+      - name: goal_id
+        type: string
+        required: true
+      - name: text
+        type: string
+        required: true
+      - name: confidence
+        type: number
+      - name: supporting_queries
+        type: string[]
+      - name: visualization_id
+        type: string
+
+  ExperienceTrace:
+    level: aux
+    description: "성공한 분석 trace — MetaGPT Experience Recording (RL 재사용)"
+    color: "#a855f7"
+    icon: history
+    properties:
+      - name: goal_id
+        type: string
+        required: true
+      - name: plan_id
+        type: string
+      - name: insight_id
+        type: string
+      - name: success
+        type: boolean
+      - name: reusable_tags
+        type: string[]
+
+edge_types:
+  # Structural (파이프라인 진행)
+  DECOMPOSES_TO:
+    category: structural
+    description: "Goal이 Plan(DAG)으로 분해"
+    source: Goal
+    target: Plan
+
+  EXECUTES:
+    category: structural
+    description: "Plan이 Query를 실행"
+    source: Plan
+    target: Query
+
+  VALIDATES:
+    category: structural
+    description: "Query 결과가 Analysis로 검증"
+    source: Query
+    target: Analysis
+
+  VISUALIZES:
+    category: structural
+    description: "Analysis가 Visualization으로 시각화"
+    source: Analysis
+    target: Visualization
+
+  CONCLUDES:
+    category: structural
+    description: "Analysis가 Insight로 귀결"
+    source: Analysis
+    target: Insight
+
+  FROM_SOURCE:
+    category: structural
+    description: "Query가 DataSource에서 데이터 가져옴"
+    source: Query
+    target: DataSource
+
+  # Semantic (가설 관계)
+  TESTS:
+    category: semantic
+    description: "Query가 Hypothesis를 검증"
+    source: Query
+    target: Hypothesis
+
+  SUPPORTS_HYPOTHESIS:
+    category: semantic
+    description: "Analysis 결과가 Hypothesis를 뒷받침"
+    source: Analysis
+    target: Hypothesis
+
+  REFUTES_HYPOTHESIS:
+    category: semantic
+    description: "Analysis 결과가 Hypothesis를 반박"
+    source: Analysis
+    target: Hypothesis
+
+  # Creation (재사용)
+  REUSES_EXPERIENCE:
+    category: creation
+    description: "새 Plan이 과거 ExperienceTrace를 재사용"
+    source: Plan
+    target: ExperienceTrace
+
+generation_methods:
+  - dag_decomposition
+  - sql_generation
+  - pandas_generation
+  - api_call_generation
+  - statistical_analysis
+  - anomaly_detection
+  - chart_spec_generation
+  - insight_summarization
+  - hypothesis_formulation
+  - experience_retrieval
+
+agent_roles:
+  - role: atlas
+    name: Atlas (Planner)
+    theory: "MetaGPT Hierarchical Graph Modeling"
+    tools: [decompose-goal, build-dag, retrieve-experience]
+    stage: 1
+
+  - role: scout
+    name: Scout (Collector)
+    theory: "Vanna 2.0 schema-RAG SQL generation"
+    tools: [sql-runner, youtube-fetcher, web-fetcher, pandas-runner, api-call]
+    stage: 2
+
+  - role: lens
+    name: Lens (Analyst)
+    theory: "Statistical analysis + anomaly detection"
+    tools: [compute-stats, detect-anomalies, test-hypothesis]
+    stage: 3
+
+  - role: canvas
+    name: Canvas (Visualizer)
+    theory: "LIDA VISGENERATOR (Microsoft)"
+    tools: [chart-generator, vega-lite-spec]
+    stage: 4
+
+  - role: oracle
+    name: Oracle (Insighter)
+    theory: "LIDA INFOGRAPHER (insight summarization)"
+    tools: [summarize-insight, confidence-score, trace-recorder]
+    stage: 5
+
+visualization:
+  edge_colors:
+    structural: "#67e8f9"
+    semantic: "#fde047"
+    creation: "#a855f7"
