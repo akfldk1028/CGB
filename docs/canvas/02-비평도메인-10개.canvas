@@ -2,7 +2,7 @@
   "nodes": [
     {
       "id": "title", "type": "text", "x": 0, "y": -100, "width": 1200, "height": 80, "color": "5",
-      "text": "# 비평 도메인 8개 — WorkflowEngine + nodes/ + 40 전문 에이전트"
+      "text": "# 비평/액션 도메인 10개 — WorkflowEngine + nodes/ + 50 전문 에이전트 (2026-04-13)"
     },
     {
       "id": "architecture", "type": "text", "x": -700, "y": 20, "width": 700, "height": 380, "color": "4",
@@ -54,7 +54,7 @@
     },
     {
       "id": "flow-summary", "type": "text", "x": -700, "y": 1750, "width": 1200, "height": 200, "color": "3",
-      "text": "## 비평 실행 전체 흐름 (한 눈에)\n```\n유저 → POST /api/v1/creations/{id}/critique\n  → OrchestratorService.startCritique()\n  → DomainRegistry.get('novel') → domain.json (5 agents) + workflow.json (synthesisFormat: critique-novel)\n  → WorkflowEngine.execute()\n      Round 1: [arc_runner + inner_voice] parallel → [ink_flow] devil_advocate → [far_realm] fact_check\n      Round 2: (필요시 반복, max 3)\n      Synthesis: [final_chapter] → critique-novel format → 7섹션 편집 리뷰\n  → DB 저장 + SSE 실시간 전송\n```\n**핵심**: 도메인 커스텀 = `domain.json`(agents) + `workflow.json`(config) + `synthesis/formats/`(종합 구조) + `agents/*.js`(persona)"
+      "text": "## 비평 실행 전체 흐름 (한 눈에)\n```\n유저 → POST /api/v1/creations/{id}/critique\n  → OrchestratorService.startCritique()\n  → DomainRegistry.get('novel') → domain.json (5 agents) + workflow.json (synthesisFormat: critique-novel)\n  → WorkflowEngine.execute()\n      Round 1: [arc_runner + inner_voice] parallel → [ink_flow] devil_advocate → [far_realm] fact_check\n      Round 2: (필요시 반복, max 3)\n      Synthesis: [final_chapter] → critique-novel format → 7섹션 편집 리뷰\n  → DB 저장 + SSE 실시간 전송\n```\n**핵심**: 도메인 커스텀 = `domain.json`(agents) + `workflow.json`(config) + `synthesis/formats/`(종합 구조) + `agents/*.js`(persona)\n\n---\n## Action Domains (2026-04-11) ★★\n5 Phase, 55+ 파일, 6100줄, REST API 6 엔드포인트\n기존 비평 엔진과 영향 0 (독립 모듈)\n\n### Negotiation (협상 시뮬레이션)\n```\nPOST /api/v1/negotiation/sessions → 세션 생성\n  → 역할 배정 (5 에이전트) → 라운드 실행\n  → state-based actor selection\n  → 합의/결렬 판정 → 결과 분석\n```\n버그 수정: actor drift + REJECT 무한루프 (a1a3c71)\n\n### Data Analysis (데이터 분석)\n```\nPOST /api/v1/data-analysis/sessions → 분석 세션\n  → 5 분석가 에이전트 → 데이터 탐색\n  → 인사이트 추출 → 시각화 제안\n  → 종합 리포트\n```\n\n10 에이전트 activity_config 태그 완료"
     }
   ],
   "edges": [

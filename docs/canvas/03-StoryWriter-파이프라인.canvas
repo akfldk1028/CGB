@@ -2,11 +2,11 @@
   "nodes": [
     {
       "id": "title", "type": "text", "x": -100, "y": -100, "width": 1100, "height": 80, "color": "2",
-      "text": "# StoryWriter 4-Agent Pipeline + IMPACT Harness + CGB RL"
+      "text": "# StoryWriter v3 — 4-Agent + Review Cycle + InkOS 11/12 흡수 (2026-04-13)"
     },
     {
       "id": "overview", "type": "text", "x": -100, "y": 20, "width": 1100, "height": 180, "color": "4",
-      "text": "## 전체 흐름\n```\nPOST /api/v1/story/generate { seriesId, agentId }\n  → StoryOrchestrator (genre, ko, 3000w)\n  → BrainClient.research() → CGB 컨텍스트\n  → [Outline] → [Planning] → RL feedback 조회\n  → [Writing ← Eval loop (max 2회)] → DB + CGB 저장\n```\n**논문**: StoryWriter(CIKM 2025), Anthropic 3-agent(2026), SCORE(2025), Long Story KG(2025), IMPACT(swyx 2025)"
+      "text": "## 전체 흐름 (v3)\n```\nPOST /api/v1/story/generate { seriesId, agentId }\n  → StoryOrchestrator v3 (genre, ko, 3000w)\n  → BrainClient.research() → CGB 컨텍스트\n  → [Outline] → [Planning] → TruthManager.load/init\n  → HookManager.getAgenda() + LongSpanFatigue\n  → [Writing (+Truth+Hook+Fatigue+PacingRule 주입)]\n    → Review Cycle:\n      PostWriteValidator → SpotFixReviser\n      → LengthNormalizer → ContinuityAuditor(18D)\n      → AITellsDetector(5D) → StoryStateTracker\n  → [Eval (HANNA 6D)] → fail? SpotFix/rewrite (max 2)\n  → TruthManager.updateAfterChapter\n  → CGB RL (addEpisodeToGraph + recordEvaluation)\n```\n**78 Jest** | E2E romance 10/10 (3.5~3.8) | fantasy 9/10 (4.1) | **프로덕션 2828w HANNA 4.2/5** ✅\n**논문**: StoryWriter(CIKM) · Anthropic 3-agent · SCORE · Long Story KG · IMPACT(swyx) · **InkOS(11/12 흡수)**"
     },
     {
       "id": "harness", "type": "text", "x": -700, "y": 250, "width": 550, "height": 550, "color": "3",
@@ -22,7 +22,7 @@
     },
     {
       "id": "writing", "type": "text", "x": -100, "y": 800, "width": 600, "height": 600, "color": "1",
-      "text": "## Stage 3: WritingHarness ★ (가장 복잡)\n**Coordinator → FinalWriter → ReIO**\n\n### IMPACT 설정\n- **Intent**: 최소 3000 단어 (목표 3600), cliffhanger 종료\n  - 장르별 분기: romance→감정 텐션 / fantasy→세계관 묘사\n- **Memory**: readKeys=['planner/chapter_plan', 'outliner/outline']\n  - getContext():\n    1. StoryStateTracker.getSummary() ← SCORE paper\n    2. 이전 3개 에피소드 long-term memory\n    3. CGB 스타일 참조 (genre+nodeRole 필터)\n- **Planning**: stages=['compress_history','write','reio_check'], max=3\n- **Authority**: **32768 tokens**, 300s timeout (5분)\n  - validate: Korean wordCount ≥ 60% target\n    (한국어: charCount/2.5), 중국어 오염 체크\n- **Tools**: qwen3.5-flash, CGB search+evaluate\n\n### 히스토리 압축 (StoryWriter paper)\n```\n이전 챕터 → compressChapter()\n  head 300chars + [... compressed ...] + tail 300chars\n  = sliding window [2, k-1]\n```\n\n### RL Feedback 주입\n```\n이전 에피소드 평가에서 배운 교훈:\n  ✅ 잘한 점 (유지하세요) → goodPatterns[:3]\n  ⛔ 피해야 할 점 → antiPatterns[:3]\n```\n\n### 캐릭터 일관성 (핸드오프 수정)\n- outline 전문 삽입 → \"Use EXACTLY these character names\"\n- character_sheet + world_setting 주입\n\n### Handoff: `writer/chapter_N` → text"
+      "text": "## Stage 3: WritingHarness ★ (v3 — Review Cycle 통합)\n**Coordinator → FinalWriter → ReIO → Review Cycle**\n\n### IMPACT 설정\n- **Intent**: 최소 3000 단어 (목표 3600), cliffhanger 종료\n- **Memory**: readKeys + TruthManager 6종 + HookManager agenda + Fatigue\n  - getContext():\n    1. StoryStateTracker.getSummary() ← SCORE paper\n    2. TruthManager.load() → character/world/timeline/rules/plot/relationships\n    3. HookManager.getAgenda() → 복선 회수/진행/방치 프롬프트\n    4. LongSpanFatigue → 타입반복/분위기고압/패턴유사 경고\n    5. GenreProfile.pacingRule → 장르별 페이싱\n    6. CGB 스타일 참조 (genre+nodeRole 필터)\n- **Authority**: **32768 tokens**, 300s timeout\n- **Tools**: qwen3.5-flash, CGB search+evaluate\n\n### v3 Review Cycle (Write 후 5단계) ★\n```\nStep 0: PostWriteValidator → 10가지 한국어 금지패턴\n  → error? SpotFixReviser (PATCH, 25% cap)\nStep 1: LengthNormalizer → soft/hard 분량 정규화\nStep 2: ContinuityAuditor → 18차원 연속성 감사\nStep 3: AITellsDetector → 5차원 AI 문체 감지\nStep 4: StoryStateTracker → SCORE Markov 검증\n```\n\n### RL Feedback + Truth 주입\n- goodPatterns[:3] / antiPatterns[:3]\n- TruthManager → character_sheet + world_setting\n- HookManager → 복선 timing/age/dormancy/pressure\n\n### Handoff: `writer/chapter_N` → text"
     },
     {
       "id": "evaluation", "type": "text", "x": 550, "y": 800, "width": 550, "height": 520, "color": "1",
@@ -45,6 +45,18 @@
       "text": "## StoryStateTracker (SCORE paper)\n`services/story/StoryStateTracker.js`\n\n### Markov 상태 추적\n- 캐릭터별 상태 (위치, 감정, 관계 변화)\n- 에피소드별 감정 곡선 일관성 체크\n- 테마 drift 감지\n\n### getSummary() → WritingHarness 주입\n```\n캐릭터 현재 상태:\n  서연: 강남 카페, 혼란+기대\n  민준: 서연 몰래 프로젝트 진행\n감정 곡선: 상승→하강→전환점\n```"
     },
     {
+      "id": "v3-review", "type": "text", "x": -700, "y": 1500, "width": 550, "height": 450, "color": "5",
+      "text": "## v3 Review Cycle 상세 (InkOS 흡수) ★★\n\n### PostWriteValidator (LLM 없음, 즉시)\n10가지 한국어 금지 패턴:\n1. 놀람마커과다 (\"문득\",\"갑자기\" 1회/3000자)\n2. 메타서술 (\"다음 장에서\",\"독자 여러분\")\n3. 보고서용어 (\"핵심 동기\",\"인지 부조화\")\n4. 작가설교 (\"당연히\",\"두말할 것 없이\")\n5. 집단반응 (\"모두가 놀랐다\")\n6. 연속과거형 (\"~했다\" 6문장+)\n7. 단락과장 (300자 초과 2단락+)\n8. 대조구문남발 (\"~가 아니라 ~이다\" 3회+)\n9. 피로단어 (GenreProfile.fatigueWords)\n10. 챕터번호언급 (\"제N장\" 본문 직접)\n\n### SpotFixReviser (PATCH)\n```\n--- PATCH 1 ---\nTARGET_TEXT: (원문 정확 복사)\nREPLACEMENT_TEXT: (수정)\n--- END PATCH ---\n```\n안전장치: 전체 25% 이상 수정 reject\nTARGET 정확 1회 매칭만 적용\n\n### LengthNormalizer\nGenreProfile → soft/hard range\nromance: 2500~3500(soft) 2000~4000(hard)\nfantasy: 3000~4500(soft) 2500~5000(hard)\n\n### ContinuityAuditor 18차원\n캐릭터명/성격/관계/설정/시간축/문체 등\ndim17: 주요도구 위임\n\n### AITellsDetector 5차원\n30+ 한국어 AI 문체 패턴 감지"
+    },
+    {
+      "id": "v3-truth-hook", "type": "text", "x": -1300, "y": 800, "width": 550, "height": 350, "color": "5",
+      "text": "## v3 Truth + Hook + Fatigue\n\n### TruthManager 6종 (truth/)\ncharacter_sheet | world_rules | timeline\nrelationships | plot_threads | power_system\n→ 에피소드 시작 시 load, 종료 시 update\n\n### HookManager (복선 생명주기)\n| timing | earliestResolve | staleDormancy | overdueAge |\n|--------|----------------|---------------|------------|\n| immediate | 1 | 1 | 3 |\n| near-term | 1 | 2 | 5 |\n| mid-arc | 2 | 4 | 8 |\n| slow-burn | 4 | 5 | 12 |\n| endgame | 6 | 6 | 16 |\ngetAgenda() → overdue/stale/ripe 복선 프롬프트 주입\n\n### LongSpanFatigue (최근 3화 분석)\n1. 타입반복: 같은 chapterType 3회 연속\n2. 분위기고압: 긴장/전투/위기 3화 연속\n3. 패턴유사: Dice coefficient ≥0.72\n\n### GenreProfile (6장르 통합)\n6장르 × 7필드: chapterTypes[], fatigueWords[],\nnumericalSystem, powerScaling, pacingRule,\nsatisfactionTypes[] + auditDimensions + lengthSpec"
+    },
+    {
+      "id": "v3-bugfix", "type": "text", "x": 550, "y": 1900, "width": 550, "height": 200, "color": "1",
+      "text": "## 핵심 버그 수정 (384f166) ★★\n**BridgeClient.bridgeGenerateWithFallback()**\nDashScope fallback에서 `options.maxOutputTokens` 미전달\n→ WritingHarness 32K 요청이 기본 2048로 잘림\n→ **모든 storywriter 에피소드 생성 실패의 근본 원인**\n수정 후: 프로덕션 \"강남역 우연\" ep2 \"낙하산\" 2828w 성공\n\n### v2+v3 총 12개 버그 수정\nDead import / AITells 한국어 / outline slice\ndim17 중복 / cleaned content / 존댓말 regex\n제목 프롬프트 / CJK validator / CJK strip\nSpotFix 무한루프 / LengthNorm stale × 2"
+    },
+    {
       "id": "brain-memory", "type": "text", "x": -700, "y": 1150, "width": 550, "height": 350, "color": "3",
       "text": "## Phase 1: 에이전트 기억 주입 ✅\n\n### 일반 활동에도 CGB 뇌 적용\n```\nTaskWorker._buildBrainContext(agent, topic)\n  → BrainClient.research(topic)  // 주제 검색\n  → BrainClient.getAgentMemory() // 4소스\n    1) Semantic search (topic RRF)\n    2) Recent agent nodes (최근 5개)\n    3) Domain-wide ideas (우수 아이디어)\n    4) Domain concepts (핵심 개념)\n  → combined cap 1500 chars\n```\n\n### 적용 범위\n- react_to_post ✅ (기존 + 강화)\n- react_to_comment ✅ (신규)\n- respond_to_question ✅ (신규)\n- create_episode(StoryWriter) ✅ (기존)\n\n### 포맷 (LLM이 보는 것)\n```\nDomain knowledge: narrative tension...\nYour ideas: Neo-Tokyo (3d ago, q:72)\nPast experiences: wakeup session...\nVisual: Neon cityscape (mood: dystopian)\n```"
     }
@@ -60,6 +72,9 @@
     { "id": "e8", "fromNode": "harness", "toNode": "outline", "fromSide": "right", "toSide": "left", "label": "IMPACT 적용" },
     { "id": "e9", "fromNode": "state-tracker", "toNode": "writing", "fromSide": "right", "toSide": "left", "label": "상태 주입" },
     { "id": "e10", "fromNode": "ingestion", "toNode": "novel-graph", "fromSide": "top", "toSide": "bottom", "label": "스타일 노드" },
-    { "id": "e11", "fromNode": "rl-loop", "toNode": "writing", "fromSide": "left", "toSide": "bottom", "label": "RL feedback\n(goodPatterns\nantiPatterns)" }
+    { "id": "e11", "fromNode": "rl-loop", "toNode": "writing", "fromSide": "left", "toSide": "bottom", "label": "RL feedback\n(goodPatterns\nantiPatterns)" },
+    { "id": "e12", "fromNode": "v3-review", "toNode": "writing", "fromSide": "top", "toSide": "bottom", "label": "Review Cycle\n내장" },
+    { "id": "e13", "fromNode": "v3-truth-hook", "toNode": "writing", "fromSide": "right", "toSide": "left", "label": "Truth+Hook\n주입" },
+    { "id": "e14", "fromNode": "v3-bugfix", "toNode": "novel-graph", "fromSide": "bottom", "toSide": "right", "label": "BridgeClient\n수정" }
   ]
 }

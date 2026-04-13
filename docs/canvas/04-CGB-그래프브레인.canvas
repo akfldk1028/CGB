@@ -6,7 +6,7 @@
     },
     {
       "id": "stats", "type": "text", "x": -100, "y": 20, "width": 1100, "height": 100, "color": "4",
-      "text": "## 실측 (2026-04-09)\n**40K+ nodes / 109K+ edges** | Jina v3 768d 임베딩 100% | 8 노드타입 | 34 엣지타입\ncosine + BM25 + BFS → RRF 3중검색 | Vercel 배포 (cgb-brain-lemon.vercel.app)"
+      "text": "## 실측 (2026-04-13)\n**40K+ nodes / 109K+ edges** | Jina v3 768d 임베딩 100% | 8 노드타입 | 34 엣지타입\ncosine + BM25 + BFS → RRF 3중검색 | Vercel 배포 (cgb-brain-lemon.vercel.app)\n도메인 YAML 6개 (creativity+novel+architecture+music+korean-law+_template) | **StoryWriter v3 RL 연동 완료**"
     },
     {
       "id": "hierarchy", "type": "text", "x": -700, "y": 170, "width": 600, "height": 650, "color": "1",
@@ -46,7 +46,7 @@
     },
     {
       "id": "agent-memory", "type": "text", "x": -700, "y": 1900, "width": 600, "height": 420, "color": "2",
-      "text": "## 뇌 강화 Phase 0~3 ✅ (2026-04-10)\n\n### Phase 0: 이미지→그래프 domain 연결\nscene-graph.ts → domain/layer/agent + BELONGS_TO/GENERATED_BY\n\n### Phase 1: 에이전트 기억 주입\n`BrainClient.getAgentMemory()` → 5소스 병렬 CGB 조회\n```\n1. Semantic search (topic RRF) → 맥락 관련\n2. Recent agent nodes → 내 최근 5개\n3. Domain-wide ideas → 도메인 우수 아이디어\n4. Domain concepts → 핵심 개념 4개\n5. Peer insights → 동료 에이전트 발견 ★Phase 3\n```\n\n### 포맷 (6 카테고리)\nA. Domain knowledge / B. Your ideas / C. Past experiences\nD. Visual inspirations / E. Topic-relevant / F. **Peer discoveries**\n\n### Phase 2: 역방향 강화 (graph→brain_config)\n```\nHR evaluateAll()\n → getAgentGraphMetrics(domainCache)\n   → conceptDensity, scoreVsDomain, hasCrossDomain\n → applyGraphFeedback(GRAPH_THRESHOLDS)\n   → temp ↑↓ + weights ↑ + maxChangesPerCycle:3\n → recordEvolution (배치 5개씩)\n```\n도메인캐시 공유로 ~450 중복 API 제거\n\n### Phase 3: Cross-Pollination\n- getCrossDomainInsights(): 같은 도메인 다른 에이전트 노드\n- connector archetype → 인접 도메인 peek (다양성 보장)\n- CROSS_REFERENCES 엣지 자동 생성\n\n### Phase 4: 검색 RL (미착수)\nKG-R1 패턴 — 에이전트별 search_weights 학습"
+      "text": "## 뇌 강화 Phase 0~3 ✅ (2026-04-13, StoryWriter v3 연동)\n\n### Phase 0: 이미지→그래프 domain 연결\nscene-graph.ts → domain/layer/agent + BELONGS_TO/GENERATED_BY\n\n### Phase 1: 에이전트 기억 주입\n`BrainClient.getAgentMemory()` → 5소스 병렬 CGB 조회\n```\n1. Semantic search (topic RRF) → 맥락 관련\n2. Recent agent nodes → 내 최근 5개\n3. Domain-wide ideas → 도메인 우수 아이디어\n4. Domain concepts → 핵심 개념 4개\n5. Peer insights → 동료 에이전트 발견 ★Phase 3\n```\n\n### 포맷 (6 카테고리)\nA. Domain knowledge / B. Your ideas / C. Past experiences\nD. Visual inspirations / E. Topic-relevant / F. **Peer discoveries**\n\n### Phase 2: 역방향 강화 (graph→brain_config)\n```\nHR evaluateAll()\n → getAgentGraphMetrics(domainCache)\n   → conceptDensity, scoreVsDomain, hasCrossDomain\n → applyGraphFeedback(GRAPH_THRESHOLDS)\n   → temp ↑↓ + weights ↑ + maxChangesPerCycle:3\n → recordEvolution (배치 5개씩)\n```\n도메인캐시 공유로 ~450 중복 API 제거\n\n### Phase 3: Cross-Pollination\n- getCrossDomainInsights(): 같은 도메인 다른 에이전트 노드\n- connector archetype → 인접 도메인 peek (다양성 보장)\n- CROSS_REFERENCES 엣지 자동 생성\n\n### Phase 4: 검색 RL (미착수)\nKG-R1 패턴 — 에이전트별 search_weights 학습"
     },
     {
       "id": "events", "type": "text", "x": -700, "y": 1600, "width": 600, "height": 250, "color": "3",
